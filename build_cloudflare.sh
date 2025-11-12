@@ -1,23 +1,24 @@
 #!/bin/bash
+set -e
 
 echo "🚀 Starting Flutter Web build for Cloudflare Pages..."
 
+# Save current directory (project root)
+PROJECT_DIR="$PWD"
+
 # Set Flutter version
 FLUTTER_VERSION="stable"
-FLUTTER_DIR="$HOME/flutter"
+FLUTTER_DIR="$PROJECT_DIR/flutter_sdk"
 
 # Install Flutter
 if [ ! -d "$FLUTTER_DIR" ]; then
     echo "📦 Installing Flutter..."
-    cd $HOME
-    git clone https://github.com/flutter/flutter.git -b ${FLUTTER_VERSION} --depth 1
-    export PATH="$PATH:$FLUTTER_DIR/bin"
-    export PATH="$PATH:$FLUTTER_DIR/bin/cache/dart-sdk/bin"
-else
-    echo "✅ Flutter already installed"
-    export PATH="$PATH:$FLUTTER_DIR/bin"
-    export PATH="$PATH:$FLUTTER_DIR/bin/cache/dart-sdk/bin"
+    git clone https://github.com/flutter/flutter.git -b ${FLUTTER_VERSION} --depth 1 "$FLUTTER_DIR"
 fi
+
+# Set Flutter path
+export PATH="$FLUTTER_DIR/bin:$PATH"
+export PATH="$FLUTTER_DIR/bin/cache/dart-sdk/bin:$PATH"
 
 # Configure Flutter
 echo "⚙️ Configuring Flutter..."
@@ -31,8 +32,8 @@ flutter precache --web
 echo "📋 Flutter version:"
 flutter --version
 
-# Return to project directory
-cd $HOME/project
+# Make sure we're in project directory
+cd "$PROJECT_DIR"
 
 # Get dependencies
 echo "📥 Getting Flutter dependencies..."
