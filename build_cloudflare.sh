@@ -3,30 +3,36 @@
 echo "🚀 Starting Flutter Web build for Cloudflare Pages..."
 
 # Set Flutter version
-FLUTTER_VERSION="3.24.5"
-FLUTTER_CHANNEL="stable"
+FLUTTER_VERSION="stable"
+FLUTTER_DIR="$HOME/flutter"
 
 # Install Flutter
-if [ ! -d "/opt/flutter" ]; then
-    echo "📦 Installing Flutter ${FLUTTER_VERSION}..."
-    cd /opt
-    git clone https://github.com/flutter/flutter.git -b ${FLUTTER_CHANNEL} --depth 1
-    export PATH="$PATH:/opt/flutter/bin"
+if [ ! -d "$FLUTTER_DIR" ]; then
+    echo "📦 Installing Flutter..."
+    cd $HOME
+    git clone https://github.com/flutter/flutter.git -b ${FLUTTER_VERSION} --depth 1
+    export PATH="$PATH:$FLUTTER_DIR/bin"
+    export PATH="$PATH:$FLUTTER_DIR/bin/cache/dart-sdk/bin"
 else
     echo "✅ Flutter already installed"
-    export PATH="$PATH:/opt/flutter/bin"
+    export PATH="$PATH:$FLUTTER_DIR/bin"
+    export PATH="$PATH:$FLUTTER_DIR/bin/cache/dart-sdk/bin"
 fi
 
 # Configure Flutter
 echo "⚙️ Configuring Flutter..."
 flutter config --enable-web --no-analytics
 
+# Precache web dependencies
+echo "📦 Precaching Flutter web..."
+flutter precache --web
+
 # Get Flutter version
 echo "📋 Flutter version:"
 flutter --version
 
 # Return to project directory
-cd $CF_PAGES_BUILD_DIR
+cd $HOME/project
 
 # Get dependencies
 echo "📥 Getting Flutter dependencies..."
