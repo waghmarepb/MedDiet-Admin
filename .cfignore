@@ -1,0 +1,27 @@
+# Ignore unnecessary files for Cloudflare Pages deployment
+.git/
+.github/
+android/
+ios/
+linux/
+macos/
+windows/
+test/
+lib/
+*.md
+*.iml
+.metadata
+.packages
+pubspec.yaml
+pubspec.lock
+analysis_options.yaml
+.dart_tool/
+.idea/
+.vscode/
+*.log
+*.pdf
+document.pdf
+info.txt
+
+
+
