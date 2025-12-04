@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
+import 'package:meddiet/screens/login_screen.dart';
 import 'package:meddiet/screens/main_layout.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -37,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainLayout()),
+          MaterialPageRoute(builder: (context) => const SignInScreen()),
         );
       }
     });
