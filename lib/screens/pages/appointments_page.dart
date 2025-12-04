@@ -204,29 +204,29 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                         });
                       },
                       borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        height: 50,
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
+                    child: Container(
+                      height: 50,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
                           color: isSelected 
-                              ? AppColors.primary 
-                              : hasAppointment 
-                                  ? AppColors.primary.withOpacity(0.1) 
-                                  : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
+                            ? AppColors.primary 
+                            : hasAppointment 
+                                ? AppColors.primary.withOpacity(0.1) 
+                                : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
                           border: hasAppointment && !isSelected
-                              ? Border.all(color: AppColors.primary, width: 1.5)
-                              : Border.all(color: const Color(0xFFE5E5E5), width: 1),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '$dateNumber',
-                            style: TextStyle(
+                            ? Border.all(color: AppColors.primary, width: 1.5)
+                            : Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$dateNumber',
+                          style: TextStyle(
                               color: isSelected 
-                                  ? Colors.white 
-                                  : const Color(0xFF2D3142),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
+                                ? Colors.white 
+                                : const Color(0xFF2D3142),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
                             ),
                           ),
                         ),
@@ -302,12 +302,12 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             )
           else
             ...appointments.map((appointment) {
-              return _buildAppointmentItem(
+            return _buildAppointmentItem(
                 appointment['time']!,
                 appointment['title']!,
                 appointment['doctor']!,
                 appointment['patient']!,
-              );
+            );
             }).toList(),
         ],
       ),
@@ -352,14 +352,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       color: AppColors.primary,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      time,
-                      style: const TextStyle(
+                Text(
+                  time,
+                  style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -394,14 +394,14 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                       color: Color(0xFF9E9E9E),
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      doctor,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF9E9E9E),
-                      ),
-                    ),
-                  ],
+                Text(
+                  doctor,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF9E9E9E),
+                  ),
+                ),
+              ],
                 ),
               ],
             ),
