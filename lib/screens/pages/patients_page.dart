@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:math';
 
 class PatientsPage extends StatefulWidget {
   const PatientsPage({super.key});
@@ -13,6 +16,243 @@ class _PatientsPageState extends State<PatientsPage> {
   int selectedPatientIndex = 0;
   String searchQuery = '';
   String? selectedMealType;
+
+  // Store passwords for each patient (in real app, this would be in database)
+  final Map<String, String> _patientPasswords = {};
+
+  String _generatePassword() {
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
+    final random = Random.secure();
+    return List.generate(
+      12,
+      (index) => chars[random.nextInt(chars.length)],
+    ).join();
+  }
+
+  String _getOrCreatePassword(String patientId) {
+    if (!_patientPasswords.containsKey(patientId)) {
+      _patientPasswords[patientId] = _generatePassword();
+    }
+    return _patientPasswords[patientId]!;
+  }
+
+  void _shareCredentialsViaWhatsApp(Map<String, dynamic> patient) async {
+    final password = _getOrCreatePassword(patient['id']);
+    final username =
+        patient['email'] ??
+        '${patient['name'].toLowerCase().replaceAll(' ', '.')}@meddiet.com';
+
+    final message =
+        '''
+🏥 *MedDiet Admin - Patient Credentials*
+
+Hello ${patient['name']},
+
+Your account has been created successfully!
+
+*Login Credentials:*
+👤 Username: $username
+🔐 Password: $password
+
+Please keep these credentials safe and change your password after first login.
+
+Download the MedDiet app and start your health journey today!
+
+Best regards,
+MedDiet Team
+    ''';
+
+    // Remove all non-numeric characters from phone number
+    final phoneNumber = (patient['phone'] ?? '').replaceAll(
+      RegExp(r'[^0-9]'),
+      '',
+    );
+    final whatsappUrl =
+        'https://wa.me/$phoneNumber?text=${Uri.encodeComponent(message)}';
+
+    try {
+      final uri = Uri.parse(whatsappUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // Fallback to regular share
+        await Share.share(message);
+      }
+    } catch (e) {
+      // Fallback to regular share
+      await Share.share(message);
+    }
+  }
+
+  void _resetPassword(Map<String, dynamic> patient) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.lock_reset,
+                  color: Colors.orange,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Reset Password',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Are you sure you want to reset the password for ${patient['name']}?',
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'A new password will be generated and can be shared with the patient.',
+                        style: TextStyle(fontSize: 12, color: Colors.orange),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _patientPasswords[patient['id']] = _generatePassword();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Text('Password reset for ${patient['name']}'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Reset Password',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPatientMenu(Map<String, dynamic> patient) {
+    showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(1000, 100, 0, 0),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      items: <PopupMenuEntry<String>>[
+        PopupMenuItem<String>(
+          value: 'share',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.share, color: Colors.green, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Share Credentials via WhatsApp',
+                style: TextStyle(fontSize: 14),
+              ),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(
+              const Duration(milliseconds: 100),
+              () => _shareCredentialsViaWhatsApp(patient),
+            );
+          },
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'reset',
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.lock_reset,
+                  color: Colors.orange,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Text('Reset Password', style: TextStyle(fontSize: 14)),
+            ],
+          ),
+          onTap: () {
+            Future.delayed(
+              const Duration(milliseconds: 100),
+              () => _resetPassword(patient),
+            );
+          },
+        ),
+      ],
+    );
+  }
 
   void _showAddMealDialog() {
     showDialog(
@@ -2037,7 +2277,22 @@ class _PatientsPageState extends State<PatientsPage> {
                   const SizedBox(width: 8),
                   _buildHeaderIconButton(Icons.message, Colors.white),
                   const SizedBox(width: 8),
-                  _buildHeaderIconButton(Icons.more_vert, Colors.white),
+                  InkWell(
+                    onTap: () => _showPatientMenu(patient),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.more_vert,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
