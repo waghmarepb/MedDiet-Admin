@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/screens/pages/dashboard_page.dart';
 import 'package:meddiet/screens/pages/patients_page.dart';
 import 'package:meddiet/screens/pages/diet_plans_page.dart';
@@ -10,11 +11,13 @@ import 'package:meddiet/screens/pages/help_page.dart';
 class MainLayout extends StatefulWidget {
   final Widget? child;
   final int? currentIndex;
+  final bool showLoginSuccess;
   
   const MainLayout({
     super.key,
     this.child,
     this.currentIndex,
+    this.showLoginSuccess = false
   });
 
   @override
@@ -36,11 +39,25 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   void initState() {
-    super.initState();
-    if (widget.currentIndex != null) {
-      _selectedIndex = widget.currentIndex!;
-    }
+  super.initState();
+
+  if (widget.showLoginSuccess) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Logged in successfully!"),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    });
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
