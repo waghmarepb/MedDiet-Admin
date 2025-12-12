@@ -2472,7 +2472,7 @@ MedDiet Team
   }
 
   Widget _buildStepsCard(Map<String, dynamic> patient) {
-    double progress = patient['steps'] / patient['targetSteps'];
+    double progress = (patient['steps'] as num).toDouble() / (patient['targetSteps'] as num).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -2562,7 +2562,7 @@ MedDiet Team
   }
 
   Widget _buildCaloriesCard(Map<String, dynamic> patient) {
-    double progress = patient['caloriesIntake'] / patient['targetCalories'];
+    double progress = (patient['caloriesIntake'] as num).toDouble() / (patient['targetCalories'] as num).toDouble();
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -3635,7 +3635,8 @@ MedDiet Team
   }
 
   Widget _buildWeightProgressCard(Map<String, dynamic> patient) {
-    final progress = patient['weightProgress'] as List;
+    final progressRaw = patient['weightProgress'] as List;
+    final progress = progressRaw.map((e) => (e as num).toDouble()).toList();
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -3727,13 +3728,9 @@ MedDiet Team
               crossAxisAlignment: CrossAxisAlignment.end,
               children: progress.asMap().entries.map((entry) {
                 final index = entry.key;
-                final weight = entry.value as double;
-                final maxWeight = progress.cast<double>().reduce(
-                  (a, b) => a > b ? a : b,
-                );
-                final minWeight = progress.cast<double>().reduce(
-                  (a, b) => a < b ? a : b,
-                );
+                final weight = entry.value;
+                final maxWeight = progress.reduce((a, b) => a > b ? a : b);
+                final minWeight = progress.reduce((a, b) => a < b ? a : b);
                 final barHeight =
                     ((weight - minWeight) / (maxWeight - minWeight)) * 75 + 20;
 
