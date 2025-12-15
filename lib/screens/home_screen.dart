@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:meddiet/screens/user_details_page.dart';
 import 'package:meddiet/screens/main_layout.dart';
+import 'package:meddiet/widgets/responsive_scaler.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,35 +19,37 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   Widget build(BuildContext context) {
     super.build(context);
     return MainLayout(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(30),
-          child: Column(
-            children: [
-              // Header at top
-              _buildHeader(),
-              // Main content area with 2 columns
-              Expanded(
-                child: Row(
-                  children: [
-                    // Center column - Transactions & Summary (80%)
-                    Expanded(
-                      flex: 8,
-                      child: _buildCenterColumn(),
-                    ),
-                    // Right column - Contacts (20%)
-                    Expanded(
-                      flex: 2,
-                      child: _buildRightSidebar(),
-                    ),
-                  ],
+      child: ResponsiveScaler(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(30),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(30),
+            child: Column(
+              children: [
+                // Header at top
+                _buildHeader(),
+                // Main content area with 2 columns
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Center column - Transactions & Summary (80%)
+                      Expanded(
+                        flex: 8,
+                        child: _buildCenterColumn(),
+                      ),
+                      // Right column - Contacts (20%)
+                      Expanded(
+                        flex: 2,
+                        child: _buildRightSidebar(),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

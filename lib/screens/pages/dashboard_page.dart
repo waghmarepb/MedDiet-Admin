@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -8,38 +9,31 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
+class _DashboardPageState extends State<DashboardPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    // Root container keeps same look, but sizes are responsive.
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30.r),
         child: Column(
           children: [
-            // Header at top
             _buildHeader(),
-            // Main content area with 2 columns
             Expanded(
               child: Row(
                 children: [
-                  // Center column - Transactions & Summary (80%)
-                  Expanded(
-                    flex: 8,
-                    child: _buildCenterColumn(),
-                  ),
-                  // Right column - Contacts (20%)
-                  Expanded(
-                    flex: 2,
-                    child: _buildRightSidebar(),
-                  ),
+                  Expanded(flex: 8, child: _buildCenterColumn()),
+                  Expanded(flex: 2, child: _buildRightSidebar()),
                 ],
               ),
             ),
@@ -50,105 +44,118 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+    // Header with responsive paddings and FittedBox to avoid overflow.
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 40.w, vertical: 20.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Good Evening Mikey!',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3142),
+          // Title - allow it to shrink if needed
+          Flexible(
+            child: Text(
+              'Good Evening Mikey!',
+              style: TextStyle(
+                fontSize: 28.sp,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF2D3142),
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Personal Account',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF2D3142),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down, size: 18),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+
+          // Right side: group of controls. Wrap in FittedBox to prevent overflow.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.credit_card, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF2D3142)),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF2D3142)),
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Personal Account',
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          color: const Color(0xFF2D3142),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFFDB777),
-                child: const Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                      SizedBox(width: 8.w),
+                      Icon(Icons.keyboard_arrow_down, size: 18.sp),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                SizedBox(width: 12.w),
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    ),
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  child: Icon(Icons.credit_card, color: Colors.white, size: 18.sp),
+                ),
+                SizedBox(width: 12.w),
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
+                  ),
+                  child: Icon(Icons.chat_bubble_outline, size: 18.sp, color: const Color(0xFF2D3142)),
+                ),
+                SizedBox(width: 12.w),
+                Container(
+                  padding: EdgeInsets.all(10.w),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(Icons.notifications_outlined, size: 18.sp, color: const Color(0xFF2D3142)),
+                      Positioned(
+                        right: -2.w,
+                        top: -2.h,
+                        child: Container(
+                          width: 8.w,
+                          height: 8.h,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(width: 12.w),
+                CircleAvatar(
+                  radius: 20.r,
+                  backgroundColor: const Color(0xFFFDB777),
+                  child: Text(
+                    'M',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -156,20 +163,16 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildCenterColumn() {
-    return Builder(
-      builder: (context) {
-        return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildQuickSummary(),
-              const SizedBox(height: 30),
-              _buildAllUsersList(context),
-            ],
-          ),
-        );
-      },
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 30.w, vertical: 10.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildQuickSummary(),
+          SizedBox(height: 30.h),
+          _buildAllUsersList(context),
+        ],
+      ),
     );
   }
 
@@ -177,41 +180,67 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Title + View All (wrap to prevent overflow)
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Quick Summary On Your Account',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3142),
+            Flexible(
+              child: Text(
+                'Quick Summary On Your Account',
+                style: TextStyle(
+                  fontSize: 20.sp,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2D3142),
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             TextButton(
               onPressed: () {},
-              child: const Text(
+              child: Text(
                 'View All',
                 style: TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 13,
+                  color: const Color(0xFF9E9E9E),
+                  fontSize: 13.sp,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('Active Plans', '856', 'INR', const Color(0xFF00BCD4), false)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('Consultations', '342', 'INR', const Color(0xFF5B4FA3), false, showBars: true)),
-            const SizedBox(width: 16),
-            Expanded(child: _buildPieChartCard()),
-          ],
-        ),
+        SizedBox(height: 16.h),
+
+        // Responsive cards: use LayoutBuilder to switch between Row (desktop) and Wrap (narrow)
+        LayoutBuilder(builder: (context, constraints) {
+          // If narrow, use wrap (cards will wrap onto next line)
+          if (constraints.maxWidth < 1000.w) {
+            // choose 1 or 2 columns based on width
+            int columns = constraints.maxWidth < 600.w ? 1 : 2;
+            double itemWidth = (constraints.maxWidth - (16.w * (columns - 1))) / columns;
+            return Wrap(
+              spacing: 16.w,
+              runSpacing: 16.h,
+              children: [
+                SizedBox(width: itemWidth, child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
+                SizedBox(width: itemWidth, child: _buildSummaryCard('Active Plans', '856', 'INR', const Color(0xFF00BCD4), false)),
+                SizedBox(width: itemWidth, child: _buildSummaryCard('Consultations', '342', 'INR', const Color(0xFF5B4FA3), false, showBars: true)),
+                SizedBox(width: itemWidth, child: _buildPieChartCard()),
+              ],
+            );
+          } else {
+            // Desktop: keep single row; use Expanded to distribute space
+            return Row(
+              children: [
+                Expanded(child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
+                SizedBox(width: 16.w),
+                Expanded(child: _buildSummaryCard('Active Plans', '856', 'INR', const Color(0xFF00BCD4), false)),
+                SizedBox(width: 16.w),
+                Expanded(child: _buildSummaryCard('Consultations', '342', 'INR', const Color(0xFF5B4FA3), false, showBars: true)),
+                SizedBox(width: 16.w),
+                Expanded(child: _buildPieChartCard()),
+              ],
+            );
+          }
+        }),
       ],
     );
   }
@@ -220,48 +249,64 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'All Users',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3142),
+        // Header row — wrap to avoid overflow
+        Padding(
+          padding: EdgeInsets.only(right: 4.w),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  'All Users',
+                  style: TextStyle(
+                    fontSize: 22.sp,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF2D3142),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: const Icon(Icons.arrow_back_ios_new, size: 14),
+
+              // controls: shrink when necessary
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: const Color(0xFFE5E5E5)),
+                      ),
+                      child: Icon(Icons.arrow_back_ios_new, size: 14.sp),
+                    ),
+                    SizedBox(width: 10.w),
+                    Container(
+                      padding: EdgeInsets.all(8.w),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10.r),
+                        border: Border.all(color: const Color(0xFFE5E5E5)),
+                      ),
+                      child: Icon(Icons.arrow_forward_ios, size: 14.sp),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: const Icon(Icons.arrow_forward_ios, size: 14),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
+
+        SizedBox(height: 20.h),
+
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24.w),
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(20.r),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +318,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 'Chicago, TX',
                 const Color(0xFF5B4FA3),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               _buildUserItem(
                 context,
                 'Jack Green',
@@ -281,7 +326,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 'Oakland, CO',
                 const Color(0xFF00BCD4),
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               _buildUserItem(
                 context,
                 'Carmen Lewis',
@@ -304,65 +349,65 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     Color iconColor,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(16.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14.r),
       ),
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 48.w,
+            height: 48.w,
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
             ),
-            child: Icon(Icons.person, color: iconColor, size: 22),
+            child: Icon(Icons.person, color: iconColor, size: 22.sp),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: TextStyle(
+                    fontSize: 15.sp,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2D3142),
+                    color: const Color(0xFF2D3142),
                   ),
                 ),
-                const SizedBox(height: 4),
+                SizedBox(height: 4.h),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF9E9E9E),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: const Color(0xFF9E9E9E),
                   ),
                 ),
-                const SizedBox(height: 2),
+                SizedBox(height: 2.h),
                 Text(
                   location,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFFBDBDBD),
+                  style: TextStyle(
+                    fontSize: 11.sp,
+                    color: const Color(0xFFBDBDBD),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: 14.w),
           Container(
-            width: 36,
-            height: 36,
+            width: 36.w,
+            height: 36.h,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
               ),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(10.r),
             ),
-            child: const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+            child: Icon(Icons.arrow_forward, color: Colors.white, size: 18.sp),
           ),
         ],
       ),
@@ -371,10 +416,10 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
 
   Widget _buildSummaryCard(String title, String amount, String currency, Color color, bool showAreaChart, {bool showBars = false}) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Column(
@@ -385,45 +430,35 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
+                style: TextStyle(fontSize: 13.sp, color: const Color(0xFF9E9E9E)),
               ),
-              Icon(Icons.trending_up, color: Colors.green, size: 14),
+              Icon(Icons.trending_up, color: Colors.green, size: 14.sp),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: 12.h),
           Text(
             amount,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3142),
-            ),
+            style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.bold, color: const Color(0xFF2D3142)),
           ),
           Text(
             currency,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFFBDBDBD),
-            ),
+            style: TextStyle(fontSize: 11.sp, color: const Color(0xFFBDBDBD)),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20.h),
           SizedBox(
-            height: 70,
+            height: 70.h,
             child: showAreaChart
                 ? CustomPaint(
-                    size: const Size(double.infinity, 70),
+                    size: Size(double.infinity, 70.h),
                     painter: AreaChartPainter(color),
                   )
                 : showBars
                     ? CustomPaint(
-                        size: const Size(double.infinity, 70),
+                        size: Size(double.infinity, 70.h),
                         painter: BarChartPainter(color),
                       )
                     : CustomPaint(
-                        size: const Size(double.infinity, 70),
+                        size: Size(double.infinity, 70.h),
                         painter: LineChartPainter(color),
                       ),
           ),
@@ -434,10 +469,10 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
 
   Widget _buildPieChartCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(20.w),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Column(
@@ -446,36 +481,24 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Graph',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
-              ),
-              const Icon(Icons.trending_up, color: Colors.green, size: 14),
+              Text('Graph', style: TextStyle(fontSize: 13.sp, color: const Color(0xFF9E9E9E))),
+              Icon(Icons.trending_up, color: Colors.green, size: 14.sp),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20.h),
           Center(
             child: SizedBox(
-              width: 100,
-              height: 100,
-              child: CustomPaint(
-                painter: DonutChartPainter(),
-              ),
+              width: 100.w,
+              height: 100.w,
+              child: CustomPaint(painter: DonutChartPainter()),
             ),
           ),
-          const SizedBox(height: 12),
-          const Center(
+          SizedBox(height: 12.h),
+          Center(
             child: Text(
               '35%\nEducation',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                color: Color(0xFF9E9E9E),
-                height: 1.3,
-              ),
+              style: TextStyle(fontSize: 11.sp, color: const Color(0xFF9E9E9E), height: 1.3),
             ),
           ),
         ],
@@ -493,166 +516,148 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(24.w),
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FC),
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(24.r),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withOpacity(0.06),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-                spreadRadius: -4,
+                blurRadius: 24.r,
+                offset: Offset(0, 8.h),
+                spreadRadius: -4.r,
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: EdgeInsets.all(24.w),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Calendar Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 14.h),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16.r),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'MY CALENDAR',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'MY CALENDAR',
+                          style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 1.5),
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<String>(
-                          value: 'April',
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
-                          underline: const SizedBox(),
-                          dropdownColor: const Color(0xFF6366F1),
-                          isDense: true,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                        SizedBox(width: 12.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(8.r),
                           ),
-                          items: ['January', 'February', 'March', 'April', 'May', 'June', 
-                                  'July', 'August', 'September', 'October', 'November', 'December']
-                              .map((String month) {
-                            return DropdownMenuItem<String>(
-                              value: month,
-                              child: Text(month),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {},
+                          child: DropdownButton<String>(
+                            value: 'April',
+                            icon: Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16.sp),
+                            underline: const SizedBox(),
+                            dropdownColor: const Color(0xFF6366F1),
+                            isDense: true,
+                            style: TextStyle(fontSize: 12.sp, color: Colors.white, fontWeight: FontWeight.w600),
+                            items: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+                                .map((String month) {
+                              return DropdownMenuItem<String>(
+                                value: month,
+                                child: Text(month, style: TextStyle(fontSize: 12.sp)),
+                              );
+                            }).toList(),
+                            onChanged: (String? newValue) {},
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                // Week Days Row
+
+                SizedBox(height: 24.h),
+
+                // Week Days Row - FittedBox to avoid overflow in very narrow sidebars
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildWeekDay('Sun'),
-                      _buildWeekDay('Mon'),
-                      _buildWeekDay('Tue'),
-                      _buildWeekDay('Wed'),
-                      _buildWeekDay('Thu'),
-                      _buildWeekDay('Fri'),
-                      _buildWeekDay('Sat'),
-                    ],
+                  padding: EdgeInsets.symmetric(horizontal: 2.w),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildWeekDay('Sun'),
+                        _buildWeekDay('Mon'),
+                        _buildWeekDay('Tue'),
+                        _buildWeekDay('Wed'),
+                        _buildWeekDay('Thu'),
+                        _buildWeekDay('Fri'),
+                        _buildWeekDay('Sat'),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
+
+                SizedBox(height: 16.h),
+
                 // Calendar Days Row
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildCalendarDay('12', false),
-                      _buildCalendarDay('13', true),
-                      _buildCalendarDay('14', false),
-                      _buildCalendarDay('15', false),
-                      _buildCalendarDay('16', false),
-                      _buildCalendarDay('17', false),
-                      _buildCalendarDay('18', false),
-                    ],
+                  padding: EdgeInsets.symmetric(horizontal: 2.w),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildCalendarDay('12', false),
+                        _buildCalendarDay('13', true),
+                        _buildCalendarDay('14', false),
+                        _buildCalendarDay('15', false),
+                        _buildCalendarDay('16', false),
+                        _buildCalendarDay('17', false),
+                        _buildCalendarDay('18', false),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 32),
-                // Date Header
+
+                SizedBox(height: 32.h),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       'APRIL, 13',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[400],
-                        letterSpacing: 1.2,
-                      ),
+                      style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600, color: Colors.grey[400], letterSpacing: 1.2),
                     ),
                     Text(
                       'See all',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[400],
-                      ),
+                      style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w500, color: Colors.grey[400]),
                     ),
                   ],
                 ),
-                const SizedBox(height: 20),
-                // Appointments List
+
+                SizedBox(height: 20.h),
+
                 Expanded(
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: [
-                      _buildAppointmentItem(
-                        '2:00 pm',
-                        'Meeting with chief physician Dr. Williams',
-                        const Color(0xFFEC4899),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '2:30 pm',
-                        'Consultation with Mr. White',
-                        const Color(0xFF8B5CF6),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:00 pm',
-                        'Consultation with Mrs. Maisey',
-                        const Color(0xFF10B981),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:50 pm',
-                        'Examination of Mrs. Lee\'s freckle',
-                        const Color(0xFF8B5CF6),
-                      ),
+                      _buildAppointmentItem('2:00 pm', 'Meeting with chief physician Dr. Williams', const Color(0xFFEC4899)),
+                      SizedBox(height: 16.h),
+                      _buildAppointmentItem('2:30 pm', 'Consultation with Mr. White', const Color(0xFF8B5CF6)),
+                      SizedBox(height: 16.h),
+                      _buildAppointmentItem('3:00 pm', 'Consultation with Mrs. Maisey', const Color(0xFF10B981)),
+                      SizedBox(height: 16.h),
+                      _buildAppointmentItem('3:50 pm', 'Examination of Mrs. Lee\'s freckle', const Color(0xFF8B5CF6)),
                     ],
                   ),
                 ),
@@ -666,42 +671,30 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
 
   Widget _buildWeekDay(String day) {
     return SizedBox(
-      width: 30,
+      width: 30.w,
       child: Text(
         day,
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: Colors.grey[500],
-        ),
+        style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w500, color: Colors.grey[500]),
       ),
     );
   }
 
   Widget _buildCalendarDay(String day, bool isSelected) {
     return Container(
-      width: 30,
-      height: 40,
+      width: 30.w,
+      height: 40.h,
       decoration: BoxDecoration(
         gradient: isSelected
-            ? const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              )
+            ? const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)])
             : null,
         color: isSelected ? null : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(10.r),
       ),
       child: Center(
         child: Text(
           day,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF374151),
-          ),
+          style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : const Color(0xFF374151)),
         ),
       ),
     );
@@ -711,40 +704,25 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Time
         SizedBox(
-          width: 55,
+          width: 55.w,
           child: Text(
             time,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[500],
-              fontWeight: FontWeight.w500,
-            ),
+            style: TextStyle(fontSize: 11.sp, color: Colors.grey[500], fontWeight: FontWeight.w500),
           ),
         ),
-        const SizedBox(width: 8),
-        // Dot
+        SizedBox(width: 8.w),
         Container(
-          width: 6,
-          height: 6,
-          margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            color: dotColor,
-            shape: BoxShape.circle,
-          ),
+          width: 6.w,
+          height: 6.h,
+          margin: EdgeInsets.only(top: 6.h),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 10),
-        // Title
+        SizedBox(width: 10.w),
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF374151),
-              fontWeight: FontWeight.w500,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 12.sp, color: const Color(0xFF374151), fontWeight: FontWeight.w500, height: 1.4),
           ),
         ),
       ],
@@ -752,17 +730,16 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   }
 }
 
-// Custom Painters
+// ------------------------------
+// Custom Painters (unchanged logic, use size provided by parent)
+// ------------------------------
 class AreaChartPainter extends CustomPainter {
   final Color color;
   AreaChartPainter(this.color);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.3)
-      ..style = PaintingStyle.fill;
-
+    final paint = Paint()..color = color.withOpacity(0.3)..style = PaintingStyle.fill;
     final path = Path();
     path.moveTo(0, size.height * 0.6);
     path.lineTo(size.width * 0.2, size.height * 0.5);
@@ -773,7 +750,6 @@ class AreaChartPainter extends CustomPainter {
     path.lineTo(size.width, size.height);
     path.lineTo(0, size.height);
     path.close();
-
     canvas.drawPath(path, paint);
   }
 
@@ -787,24 +763,15 @@ class LineChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
+    final paint = Paint()..color = color..strokeWidth = 2..style = PaintingStyle.stroke;
     final path = Path();
     path.moveTo(0, size.height * 0.6);
     path.lineTo(size.width * 0.25, size.height * 0.7);
     path.lineTo(size.width * 0.5, size.height * 0.4);
     path.lineTo(size.width * 0.75, size.height * 0.5);
     path.lineTo(size.width, size.height * 0.3);
-
     canvas.drawPath(path, paint);
-
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
+    final dotPaint = Paint()..color = color..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.5), 4, dotPaint);
   }
 
@@ -818,20 +785,13 @@ class BarChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
+    final paint = Paint()..color = color..style = PaintingStyle.fill;
     final barWidth = size.width / 10;
     final bars = [0.7, 0.5, 0.9, 0.4, 0.6, 0.8, 0.3, 0.7];
-
     for (int i = 0; i < bars.length; i++) {
       final x = i * (size.width / bars.length) + barWidth / 2;
       final barHeight = size.height * bars[i];
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight),
-        const Radius.circular(4),
-      );
+      final rect = RRect.fromRectAndRadius(Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight), const Radius.circular(4));
       canvas.drawRRect(rect, paint..color = color.withOpacity(i % 2 == 0 ? 1.0 : 0.5));
     }
   }
@@ -845,48 +805,15 @@ class DonutChartPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
+    final paint1 = Paint()..color = const Color(0xFF5B4FA3)..style = PaintingStyle.stroke..strokeWidth = 16;
+    final paint2 = Paint()..color = const Color(0xFF00BCD4)..style = PaintingStyle.stroke..strokeWidth = 16;
+    final paint3 = Paint()..color = const Color(0xFF2D3142)..style = PaintingStyle.stroke..strokeWidth = 16;
 
-    final paint1 = Paint()
-      ..color = const Color(0xFF5B4FA3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    final paint2 = Paint()
-      ..color = const Color(0xFF00BCD4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    final paint3 = Paint()
-      ..color = const Color(0xFF2D3142)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2,
-      math.pi * 0.7,
-      false,
-      paint1,
-    );
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2 + math.pi * 0.7,
-      math.pi * 0.8,
-      false,
-      paint2,
-    );
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2 + math.pi * 1.5,
-      math.pi * 0.5,
-      false,
-      paint3,
-    );
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 8), -math.pi / 2, math.pi * 0.7, false, paint1);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 8), -math.pi / 2 + math.pi * 0.7, math.pi * 0.8, false, paint2);
+    canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 8), -math.pi / 2 + math.pi * 1.5, math.pi * 0.5, false, paint3);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
