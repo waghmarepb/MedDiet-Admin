@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/screens/login_screen.dart';
 import 'package:meddiet/screens/main_layout.dart';
+import 'package:meddiet/services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -34,12 +34,18 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
     _animationController.forward();
 
-    // Navigate to main layout after 3 seconds
+    // Navigate to next screen after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const SignInScreen()),
-        );
+        if (AuthService.isLoggedIn) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainLayout()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const SignInScreen()),
+          );
+        }
       }
     });
   }
@@ -54,77 +60,145 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
-          color: AppColors.textWhite,
-        ),
-        child: Center(
-          child: AnimatedBuilder(
-            animation: _animationController,
-            builder: (context, child) {
-              return FadeTransition(
-                opacity: _fadeAnimation,
-                child: ScaleTransition(
-                  scale: _scaleAnimation,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo Container
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(30),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.medical_services,
-                          size: 80,
-                          color: AppColors.textWhite,
-                        ),
-                      ),
-                      const SizedBox(height: 30),
-                      // App Name
-                      ShaderMask(
-                        shaderCallback: (bounds) => AppColors.primaryGradient.createShader(bounds),
-                        child: const Text(
-                          'MedDiet Admin',
-                          style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Tagline
-                      const Text(
-                        'Healthcare Management System',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppColors.textSecondary,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 50),
-                      // Loading Indicator
-                      const CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF4DB8A8), // Teal
+              Color(0xFF7B68B8), // Purple
+            ],
           ),
         ),
+        child: Stack(
+          children: [
+            // Decorative background circles
+            Positioned(
+              top: -50,
+              right: -50,
+              child: _buildDecorativeCircle(200, Colors.white.withOpacity(0.1)),
+            ),
+            Positioned(
+              bottom: -30,
+              left: -30,
+              child: _buildDecorativeCircle(150, Colors.white.withOpacity(0.1)),
+            ),
+            
+            Center(
+              child: AnimatedBuilder(
+                animation: _animationController,
+                builder: (context, child) {
+                  return FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Logo with Image
+                          Container(
+                            width: 160,
+                            height: 160,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.15),
+                                  blurRadius: 30,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            padding: const EdgeInsets.all(20),
+                            child: ClipOval(
+                              child: Image.network(
+                                "https://cdn-icons-png.flaticon.com/512/3845/3845868.png", // High quality medical icon
+                                fit: BoxFit.contain,
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return const Icon(
+                                    Icons.health_and_safety,
+                                    size: 80,
+                                    color: Color(0xFF4DB8A8),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          // App Name
+                          const Text(
+                            'MedDiet Admin',
+                            style: TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: 2,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black26,
+                                  offset: Offset(0, 4),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Tagline
+                          Text(
+                            'Healthcare Management System',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white.withOpacity(0.9),
+                              fontWeight: FontWeight.w300,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 80),
+                          // Modern Loading Indicator
+                          Column(
+                            children: [
+                              const SizedBox(
+                                width: 50,
+                                child: LinearProgressIndicator(
+                                  backgroundColor: Colors.white24,
+                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+                              Text(
+                                "Initializing...",
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.7),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDecorativeCircle(double size, Color color) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color,
       ),
     );
   }

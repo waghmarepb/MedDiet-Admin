@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'dart:math' as math;
 
 class ReportsPage extends StatelessWidget {
   const ReportsPage({super.key});
@@ -77,8 +78,16 @@ class ReportsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,17 +104,24 @@ class ReportsPage extends StatelessWidget {
                 child: Icon(icon, color: color, size: 24),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Text(
-                  change,
-                  style: const TextStyle(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.bold,
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.arrow_upward, color: AppColors.success, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      change,
+                      style: const TextStyle(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -114,7 +130,7 @@ class ReportsPage extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D3142),
             ),
@@ -123,8 +139,9 @@ class ReportsPage extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 13,
               color: Color(0xFF9E9E9E),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -136,44 +153,73 @@ class ReportsPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(30),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: const Color(0xFFF0F0F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Revenue Trend',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3142),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Monthly Revenue & Growth',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2D3142),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F9FA),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.more_horiz, color: Color(0xFF9E9E9E)),
+              ),
+            ],
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 40),
           SizedBox(
             height: 300,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List.generate(12, (index) {
-                final height = 50.0 + (index * 20.0);
+                final double height = 40.0 + (math.Random().nextDouble() * 200.0);
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      width: 40,
+                      width: 35,
                       height: height,
                       decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withOpacity(0.4),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     Text(
-                      'M${index + 1}',
+                      ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][index],
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                         color: Color(0xFF9E9E9E),
                       ),
                     ),

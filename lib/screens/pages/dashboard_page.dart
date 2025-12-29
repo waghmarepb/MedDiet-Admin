@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:meddiet/services/auth_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
@@ -50,14 +52,15 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildHeader() {
+    final doctorName = AuthService.doctorData?['name'] ?? 'Doctor';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Good Evening Mikey!',
-            style: TextStyle(
+          Text(
+            'Good Evening $doctorName!',
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D3142),
@@ -136,15 +139,18 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 ),
               ),
               const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFFDB777),
-                child: const Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              InkWell(
+                onTap: () => Scaffold.of(context).openEndDrawer(),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFFDB777),
+                  child: Text(
+                    (AuthService.doctorData?['name']?[0] ?? 'D').toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -181,9 +187,9 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Quick Summary On Your Account',
+              'MedDiet Insights & Summary',
               style: TextStyle(
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2D3142),
               ),
@@ -191,16 +197,49 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             TextButton(
               onPressed: () {},
               child: const Text(
-                'View All',
+                'View Analytics',
                 style: TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 13,
+                  color: Color(0xFF6366F1),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 220,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildImageCard(
+                'Healthy Salads',
+                'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop',
+                'Recommended for Heart Health',
+              ),
+              const SizedBox(width: 20),
+              _buildImageCard(
+                'Olive Oil Benefits',
+                'https://images.unsplash.com/photo-1473093226795-af9932fe5856?q=80&w=2012&auto=format&fit=crop',
+                'Key Ingredient in MedDiet',
+              ),
+              const SizedBox(width: 20),
+              _buildImageCard(
+                'Fresh Seafood',
+                'https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1974&auto=format&fit=crop',
+                'Weekly Protein Source',
+              ),
+              const SizedBox(width: 20),
+              _buildImageCard(
+                'Nuts & Grains',
+                'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?q=80&w=2064&auto=format&fit=crop',
+                'Essential Healthy Fats',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 30),
         Row(
           children: [
             Expanded(child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
@@ -216,6 +255,77 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     );
   }
 
+  Widget _buildImageCard(String title, String imageUrl, String subtitle) {
+    return Container(
+      width: 280,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            CachedNetworkImage(
+              imageUrl: imageUrl,
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                child: const Center(child: CircularProgressIndicator()),
+              ),
+              errorWidget: (context, url, error) => const Icon(Icons.error),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.8),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildAllUsersList(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +334,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'All Users',
+              'Recent Patients',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -271,6 +381,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 'Mike Taylor',
                 'Patient - Diet Plan Active',
                 'Chicago, TX',
+                'https://i.pravatar.cc/150?u=mike',
                 const Color(0xFF5B4FA3),
               ),
               const SizedBox(height: 12),
@@ -279,6 +390,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 'Jack Green',
                 'Patient - Consultation Scheduled',
                 'Oakland, CO',
+                'https://i.pravatar.cc/150?u=jack',
                 const Color(0xFF00BCD4),
               ),
               const SizedBox(height: 12),
@@ -287,6 +399,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 'Carmen Lewis',
                 'Patient - New Registration',
                 'Milwaukee, CA',
+                'https://i.pravatar.cc/150?u=carmen',
                 const Color(0xFFFF9800),
               ),
             ],
@@ -301,6 +414,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     String title,
     String subtitle,
     String location,
+    String avatarUrl,
     Color iconColor,
   ) {
     return Container(
@@ -312,13 +426,30 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(Icons.person, color: iconColor, size: 22),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(15),
+              child: CachedNetworkImage(
+                imageUrl: avatarUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: iconColor.withOpacity(0.1),
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                errorWidget: (context, url, error) => Icon(Icons.person, color: iconColor),
+              ),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(

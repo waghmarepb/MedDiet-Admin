@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class DietPlansPage extends StatefulWidget {
   const DietPlansPage({super.key});
@@ -13,97 +14,73 @@ class _DietPlansPageState extends State<DietPlansPage> {
   String _selectedFilter = 'All';
   final List<String> filters = ['All', 'Active', 'Inactive', 'Archived'];
 
-  // Sample diet plans data
+  // Sample diet plans data with realistic images
   final List<Map<String, dynamic>> dietPlans = [
     {
-      'name': 'Keto Plan',
-      'duration': '30 days',
-      'patients': 45,
-      'status': 'Active',
-      'color': AppColors.primary,
-      'icon': Icons.restaurant_menu,
-      'description': 'Low-carb ketogenic diet',
-      'rating': 4.8,
-    },
-    {
-      'name': 'Mediterranean',
+      'name': 'Mediterranean Diet',
       'duration': '45 days',
-      'patients': 67,
+      'patients': 124,
       'status': 'Active',
-      'color': AppColors.accent,
+      'color': const Color(0xFF4DB8A8),
       'icon': Icons.local_dining,
-      'description': 'Heart-healthy Mediterranean',
+      'description': 'Heart-healthy fats and fresh produce',
+      'image': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=400&auto=format&fit=crop',
       'rating': 4.9,
     },
     {
-      'name': 'Vegan Plan',
-      'duration': '60 days',
-      'patients': 34,
+      'name': 'Keto Program',
+      'duration': '30 days',
+      'patients': 85,
       'status': 'Active',
-      'color': AppColors.success,
+      'color': const Color(0xFF6366F1),
+      'icon': Icons.restaurant_menu,
+      'description': 'High-fat, low-carb metabolic focus',
+      'image': 'https://images.unsplash.com/photo-1535914223966-332635772213?q=80&w=400&auto=format&fit=crop',
+      'rating': 4.7,
+    },
+    {
+      'name': 'Plant-Based Vegan',
+      'duration': '60 days',
+      'patients': 62,
+      'status': 'Active',
+      'color': const Color(0xFF10B981),
       'icon': Icons.eco,
-      'description': 'Plant-based nutrition',
+      'description': '100% plant-powered nutrition',
+      'image': 'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?q=80&w=400&auto=format&fit=crop',
+      'rating': 4.8,
+    },
+    {
+      'name': 'DASH Diet',
+      'duration': '90 days',
+      'patients': 142,
+      'status': 'Active',
+      'color': const Color(0xFF06B6D4),
+      'icon': Icons.favorite,
+      'description': 'Stop hypertension with smart eating',
+      'image': 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=400&auto=format&fit=crop',
+      'rating': 4.9,
+    },
+    {
+      'name': 'Intermittent Fasting',
+      'duration': '21 days',
+      'patients': 210,
+      'status': 'Active',
+      'color': const Color(0xFFF59E0B),
+      'icon': Icons.timer,
+      'description': 'Time-restricted feeding patterns',
+      'image': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=400&auto=format&fit=crop',
       'rating': 4.6,
     },
     {
-      'name': 'Low Sodium',
-      'duration': '28 days',
-      'patients': 56,
-      'status': 'Active',
-      'color': AppColors.info,
-      'icon': Icons.favorite,
-      'description': 'Heart & blood pressure care',
-      'rating': 4.7,
-    },
-    {
-      'name': 'Diabetes Control',
-      'duration': '90 days',
-      'patients': 82,
-      'status': 'Active',
-      'color': Color(0xFFF97316),
-      'icon': Icons.health_and_safety,
-      'description': 'Blood sugar management',
-      'rating': 4.9,
-    },
-    {
-      'name': 'Gluten-Free',
-      'duration': '35 days',
-      'patients': 23,
+      'name': 'Paleo Lifestyle',
+      'duration': '30 days',
+      'patients': 45,
       'status': 'Inactive',
-      'color': Color(0xFFA855F7),
-      'icon': Icons.no_meeting_room,
-      'description': 'Celiac-friendly nutrition',
+      'color': const Color(0xFF8B5CF6),
+      'icon': Icons.history,
+      'description': 'Whole foods based on ancestral diet',
+      'image': 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?q=80&w=400&auto=format&fit=crop',
       'rating': 4.5,
-    },
-    {
-      'name': 'Weight Loss',
-      'duration': '42 days',
-      'patients': 91,
-      'status': 'Active',
-      'color': Color(0xFF06B6D4),
-      'icon': Icons.trending_down,
-      'description': 'Calorie-controlled program',
-      'rating': 4.8,
-    },
-    {
-      'name': 'Muscle Gain',
-      'duration': '56 days',
-      'patients': 38,
-      'status': 'Active',
-      'color': Color(0xFFEC4899),
-      'icon': Icons.fitness_center,
-      'description': 'High-protein diet',
-      'rating': 4.7,
-    },
-    {
-      'name': 'IBS Management',
-      'duration': '40 days',
-      'patients': 19,
-      'status': 'Inactive',
-      'color': Color(0xFF8B5CF6),
-      'icon': Icons.healing,
-      'description': 'Gut-friendly nutrition',
-      'rating': 4.4,
     },
   ];
 
@@ -331,17 +308,37 @@ class _DietPlansPageState extends State<DietPlansPage> {
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        width: 45,
+                        height: 45,
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [plan['color'], plan['color'].withOpacity(0.5)],
-                          ),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: plan['color'].withOpacity(0.2),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          plan['icon'],
-                          color: Colors.white,
-                          size: 18,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: CachedNetworkImage(
+                            imageUrl: plan['image'],
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: plan['color'].withOpacity(0.1),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: plan['color'],
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Container(
+                              color: plan['color'].withOpacity(0.1),
+                              child: Icon(plan['icon'], color: plan['color'], size: 20),
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),

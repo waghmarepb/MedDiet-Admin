@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:meddiet/services/auth_service.dart';
 
 class CommonHeader extends StatelessWidget {
   final String title;
@@ -100,15 +101,18 @@ class CommonHeader extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFFDB777),
-                child: const Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              InkWell(
+                onTap: () => Scaffold.of(context).openEndDrawer(),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFFDB777),
+                  child: Text(
+                    (AuthService.doctorData?['name']?[0] ?? 'D').toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),

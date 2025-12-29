@@ -166,26 +166,30 @@ class _SettingsPageState extends State<SettingsPage> {
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
-            color: Theme.of(context).cardTheme.color,
-            borderRadius: BorderRadius.circular(16),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: AppColors.border,
+              color: const Color(0xFFF0F0F0),
               width: 1,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
-          child: Column(children: items),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Column(children: items),
+          ),
         ),
       ],
     );

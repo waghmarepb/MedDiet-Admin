@@ -1,4 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:meddiet/constants/api_config.dart';
+import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/screens/pages/dashboard_page.dart';
 import 'package:meddiet/screens/pages/patients_page.dart';
@@ -7,6 +11,8 @@ import 'package:meddiet/screens/pages/appointments_page.dart';
 import 'package:meddiet/screens/pages/reports_page.dart';
 import 'package:meddiet/screens/pages/settings_page.dart';
 import 'package:meddiet/screens/pages/help_page.dart';
+import 'package:meddiet/screens/login_screen.dart';
+import 'package:meddiet/services/auth_service.dart';
 
 class MainLayout extends StatefulWidget {
   final Widget? child;
@@ -62,6 +68,7 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      endDrawer: _buildProfileDrawer(context),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -193,6 +200,177 @@ class _MainLayoutState extends State<MainLayout> {
       );
     }
     return iconWidget;
+  }
+
+  Widget _buildProfileDrawer(BuildContext context) {
+    return Drawer(
+      width: 400,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
+      ),
+      child: FutureBuilder(
+        future: _fetchDoctorProfile(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Center(child: Text("Error loading profile"));
+          }
+
+          final data = snapshot.data as Map<String, dynamic>;
+          final doctor = data['data'];
+
+          return Column(
+            children: [
+              _buildDrawerHeader(doctor),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    _buildProfileInfoItem(Icons.email_outlined, "Email", doctor['email']),
+                    _buildProfileInfoItem(Icons.phone_outlined, "Phone", doctor['phone']),
+                    _buildProfileInfoItem(Icons.medical_services_outlined, "Specialization", doctor['specialization']),
+                    _buildProfileInfoItem(Icons.business_outlined, "Clinic", doctor['clinic_name']),
+                    _buildProfileInfoItem(Icons.qr_code_outlined, "Referral Code", doctor['referral_code']),
+                    _buildProfileInfoItem(Icons.people_outline, "Total Patients", doctor['patient_count'].toString()),
+                    const SizedBox(height: 40),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await AuthService.logout();
+                        if (!context.mounted) return;
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SignInScreen()),
+                          (route) => false,
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text("Logout", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDrawerHeader(Map<String, dynamic> doctor) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "My Profile",
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: Colors.white.withOpacity(0.2),
+            child: doctor['profile_image'] != null
+                ? ClipOval(child: Image.network(doctor['profile_image']))
+                : Text(
+                    doctor['name']?[0] ?? "D",
+                    style: const TextStyle(fontSize: 40, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            doctor['name'] ?? "Doctor",
+            style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            doctor['specialization'] ?? "Specialist",
+            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileInfoItem(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF6366F1).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: const Color(0xFF6366F1), size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(color: Color(0xFF2D3142), fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _fetchDoctorProfile() async {
+    try {
+      final response = await http.get(
+        Uri.parse(ApiConfig.baseUrl + ApiEndpoints.profile),
+        headers: {
+          'Authorization': 'Bearer ${AuthService.token}',
+          'accept': '*/*',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      print("Error fetching profile: $e");
+    }
+    return null;
   }
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class AppointmentsPage extends StatefulWidget {
   const AppointmentsPage({super.key});
@@ -14,38 +15,38 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   String selectedMonth = 'November';
   int selectedYear = 2024;
 
-  // Sample appointment data for different dates
+  // Sample appointment data for different dates with patient images
   final Map<int, List<Map<String, String>>> appointmentsByDate = {
     1: [
-      {'time': '09:00 AM', 'title': 'General Checkup', 'doctor': 'Dr. Smith', 'patient': 'John Doe'},
-      {'time': '11:00 AM', 'title': 'Follow-up Visit', 'doctor': 'Dr. Williams', 'patient': 'Jane Smith'},
+      {'time': '09:00 AM', 'title': 'General Checkup', 'doctor': 'Dr. Smith', 'patient': 'John Doe', 'image': 'https://i.pravatar.cc/150?u=john'},
+      {'time': '11:00 AM', 'title': 'Follow-up Visit', 'doctor': 'Dr. Williams', 'patient': 'Jane Smith', 'image': 'https://i.pravatar.cc/150?u=jane'},
     ],
     4: [
-      {'time': '10:00 AM', 'title': 'Dental Consultation', 'doctor': 'Dr. Brown', 'patient': 'Mike Johnson'},
-      {'time': '02:00 PM', 'title': 'Physical Therapy', 'doctor': 'Dr. Taylor', 'patient': 'Sarah Wilson'},
-      {'time': '04:00 PM', 'title': 'Cardiology Checkup', 'doctor': 'Dr. Anderson', 'patient': 'Robert Lee'},
+      {'time': '10:00 AM', 'title': 'Dental Consultation', 'doctor': 'Dr. Brown', 'patient': 'Mike Johnson', 'image': 'https://i.pravatar.cc/150?u=mike'},
+      {'time': '02:00 PM', 'title': 'Physical Therapy', 'doctor': 'Dr. Taylor', 'patient': 'Sarah Wilson', 'image': 'https://i.pravatar.cc/150?u=sarah'},
+      {'time': '04:00 PM', 'title': 'Cardiology Checkup', 'doctor': 'Dr. Anderson', 'patient': 'Robert Lee', 'image': 'https://i.pravatar.cc/150?u=robert'},
     ],
     7: [
-      {'time': '09:30 AM', 'title': 'Vaccination', 'doctor': 'Dr. Martinez', 'patient': 'Emily Davis'},
-      {'time': '01:00 PM', 'title': 'Lab Results Review', 'doctor': 'Dr. Garcia', 'patient': 'David Chen'},
+      {'time': '09:30 AM', 'title': 'Vaccination', 'doctor': 'Dr. Martinez', 'patient': 'Emily Davis', 'image': 'https://i.pravatar.cc/150?u=emily'},
+      {'time': '01:00 PM', 'title': 'Lab Results Review', 'doctor': 'Dr. Garcia', 'patient': 'David Chen', 'image': 'https://i.pravatar.cc/150?u=david'},
     ],
     10: [
-      {'time': '08:00 AM', 'title': 'Pediatric Consultation', 'doctor': 'Dr. Rodriguez', 'patient': 'Lisa Brown'},
-      {'time': '10:30 AM', 'title': 'Nutrition Counseling', 'doctor': 'Dr. Wilson', 'patient': 'Tom Harris'},
-      {'time': '03:00 PM', 'title': 'Dermatology Appointment', 'doctor': 'Dr. Lee', 'patient': 'Anna Martinez'},
+      {'time': '08:00 AM', 'title': 'Pediatric Consultation', 'doctor': 'Dr. Rodriguez', 'patient': 'Lisa Brown', 'image': 'https://i.pravatar.cc/150?u=lisa'},
+      {'time': '10:30 AM', 'title': 'Nutrition Counseling', 'doctor': 'Dr. Wilson', 'patient': 'Tom Harris', 'image': 'https://i.pravatar.cc/150?u=tom'},
+      {'time': '03:00 PM', 'title': 'Dermatology Appointment', 'doctor': 'Dr. Lee', 'patient': 'Anna Martinez', 'image': 'https://i.pravatar.cc/150?u=anna'},
     ],
     13: [
-      {'time': '09:00 AM', 'title': 'Blood Pressure Check', 'doctor': 'Dr. Williams', 'patient': 'James White'},
-      {'time': '10:00 AM', 'title': 'Diabetes Management', 'doctor': 'Dr. Davis', 'patient': 'Mary Johnson'},
-      {'time': '11:30 AM', 'title': 'Orthopedic Consultation', 'doctor': 'Dr. Thompson', 'patient': 'Chris Anderson'},
-      {'time': '01:00 PM', 'title': 'Eye Examination', 'doctor': 'Dr. Moore', 'patient': 'Patricia Taylor'},
-      {'time': '02:30 PM', 'title': 'Mental Health Session', 'doctor': 'Dr. Jackson', 'patient': 'Daniel Martin'},
-      {'time': '04:00 PM', 'title': 'Physiotherapy', 'doctor': 'Dr. White', 'patient': 'Jennifer Garcia'},
+      {'time': '09:00 AM', 'title': 'Blood Pressure Check', 'doctor': 'Dr. Williams', 'patient': 'James White', 'image': 'https://i.pravatar.cc/150?u=james'},
+      {'time': '10:00 AM', 'title': 'Diabetes Management', 'doctor': 'Dr. Davis', 'patient': 'Mary Johnson', 'image': 'https://i.pravatar.cc/150?u=mary'},
+      {'time': '11:30 AM', 'title': 'Orthopedic Consultation', 'doctor': 'Dr. Thompson', 'patient': 'Chris Anderson', 'image': 'https://i.pravatar.cc/150?u=chris'},
+      {'time': '01:00 PM', 'title': 'Eye Examination', 'doctor': 'Dr. Moore', 'patient': 'Patricia Taylor', 'image': 'https://i.pravatar.cc/150?u=patricia'},
+      {'time': '02:30 PM', 'title': 'Mental Health Session', 'doctor': 'Dr. Jackson', 'patient': 'Daniel Martin', 'image': 'https://i.pravatar.cc/150?u=daniel'},
+      {'time': '04:00 PM', 'title': 'Physiotherapy', 'doctor': 'Dr. White', 'patient': 'Jennifer Garcia', 'image': 'https://i.pravatar.cc/150?u=jennifer'},
     ],
     16: [
-      {'time': '09:00 AM', 'title': 'Allergy Testing', 'doctor': 'Dr. Miller', 'patient': 'Kevin Brown'},
-      {'time': '11:00 AM', 'title': 'Surgery Follow-up', 'doctor': 'Dr. Jones', 'patient': 'Laura Wilson'},
-      {'time': '02:00 PM', 'title': 'X-Ray Review', 'doctor': 'Dr. Clark', 'patient': 'Steven Lee'},
+      {'time': '09:00 AM', 'title': 'Allergy Testing', 'doctor': 'Dr. Miller', 'patient': 'Kevin Brown', 'image': 'https://i.pravatar.cc/150?u=kevin'},
+      {'time': '11:00 AM', 'title': 'Surgery Follow-up', 'doctor': 'Dr. Jones', 'patient': 'Laura Wilson', 'image': 'https://i.pravatar.cc/150?u=laura'},
+      {'time': '02:00 PM', 'title': 'X-Ray Review', 'doctor': 'Dr. Clark', 'patient': 'Steven Lee', 'image': 'https://i.pravatar.cc/150?u=steven'},
     ],
   };
 
@@ -307,6 +308,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 appointment['title']!,
                 appointment['doctor']!,
                 appointment['patient']!,
+                appointment['image']!,
             );
             }).toList(),
         ],
@@ -314,7 +316,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  Widget _buildAppointmentItem(String time, String title, String doctor, String patient) {
+  Widget _buildAppointmentItem(String time, String title, String doctor, String patient, String imageUrl) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -332,11 +334,22 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       child: Row(
         children: [
           Container(
-            width: 4,
-            height: 50,
+            width: 45,
+            height: 45,
             decoration: BoxDecoration(
-              gradient: AppColors.accentGradient,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(
+                  color: AppColors.primary.withOpacity(0.1),
+                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                ),
+                errorWidget: (context, url, error) => const Icon(Icons.person),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -374,26 +387,17 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(
-                      Icons.person_outline,
-                      size: 12,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                    const SizedBox(width: 4),
                     Text(
                       patient,
                       style: const TextStyle(
                         fontSize: 12,
                         color: Color(0xFF9E9E9E),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      Icons.medical_services_outlined,
-                      size: 12,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
+                    Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFF9E9E9E), shape: BoxShape.circle)),
+                    const SizedBox(width: 8),
                 Text(
                   doctor,
                   style: const TextStyle(
@@ -412,7 +416,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               color: AppColors.success.withOpacity(0.1),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Text(
+            child: const Text(
               'Scheduled',
               style: TextStyle(
                 fontSize: 11,
@@ -426,4 +430,6 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 }
+
+
 
