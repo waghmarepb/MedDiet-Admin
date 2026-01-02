@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/services/auth_service.dart';
+import 'package:meddiet/constants/api_config.dart';
+import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:math' as math;
 
 class DashboardPage extends StatefulWidget {
@@ -13,6 +17,76 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  // Real data from API
+  List<Map<String, dynamic>> _patients = [];
+  int _totalPatients = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
+  }
+
+  Future<void> _fetchDashboardData() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patients}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _patients = List<Map<String, dynamic>>.from(data['data']);
+            _totalPatients = _patients.length;
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching dashboard data: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+  }
+
+  bool _isRecentPatient(Map<String, dynamic> patient) {
+    final createdAt = patient['created_at'];
+    if (createdAt == null) return false;
+    try {
+      final date = DateTime.parse(createdAt);
+      final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+      return date.isAfter(weekAgo);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  List<Map<String, dynamic>> get _recentPatients {
+    final sorted = List<Map<String, dynamic>>.from(_patients);
+    sorted.sort((a, b) {
+      final dateA = DateTime.tryParse(a['created_at'] ?? '') ?? DateTime(2000);
+      final dateB = DateTime.tryParse(b['created_at'] ?? '') ?? DateTime(2000);
+      return dateB.compareTo(dateA);
+    });
+    return sorted.take(5).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +125,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     );
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
   Widget _buildHeader() {
     final doctorName = AuthService.doctorData?['name'] ?? 'Doctor';
     return Container(
@@ -59,7 +140,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
-            'Good Evening $doctorName!',
+            '${_getGreeting()} $doctorName!',
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -242,11 +323,11 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         const SizedBox(height: 30),
         Row(
           children: [
-            Expanded(child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
+            Expanded(child: _buildSummaryCard('Total Patients', _isLoading ? '...' : '$_totalPatients', 'Registered', const Color(0xFF5B4FA3), true)),
             const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('Active Plans', '856', 'INR', const Color(0xFF00BCD4), false)),
+            Expanded(child: _buildSummaryCard('Active Plans', _isLoading ? '...' : '$_totalPatients', 'Active', const Color(0xFF00BCD4), false)),
             const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('Consultations', '342', 'INR', const Color(0xFF5B4FA3), false, showBars: true)),
+            Expanded(child: _buildSummaryCard('This Week', _isLoading ? '...' : '${_patients.where((p) => _isRecentPatient(p)).length}', 'New Patients', const Color(0xFF5B4FA3), false, showBars: true)),
             const SizedBox(width: 16),
             Expanded(child: _buildPieChartCard()),
           ],
@@ -327,42 +408,34 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   }
 
   Widget _buildAllUsersList(BuildContext context) {
+    final colors = [
+      const Color(0xFF5B4FA3),
+      const Color(0xFF00BCD4),
+      const Color(0xFFFF9800),
+      const Color(0xFF10B981),
+      const Color(0xFFEC4899),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'Recent Patients',
-              style: TextStyle(
+            Text(
+              'Recent Patients (${_recentPatients.length})',
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF2D3142),
               ),
             ),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: const Icon(Icons.arrow_back_ios_new, size: 14),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: const Icon(Icons.arrow_forward_ios, size: 14),
-                ),
-              ],
+            IconButton(
+              onPressed: _fetchDashboardData,
+              icon: Icon(
+                Icons.refresh,
+                color: _isLoading ? Colors.grey : const Color(0xFF6366F1),
+              ),
             ),
           ],
         ),
@@ -373,48 +446,67 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildUserItem(
-                context,
-                'Mike Taylor',
-                'Patient - Diet Plan Active',
-                'Chicago, TX',
-                'https://i.pravatar.cc/150?u=mike',
-                const Color(0xFF5B4FA3),
-              ),
-              const SizedBox(height: 12),
-              _buildUserItem(
-                context,
-                'Jack Green',
-                'Patient - Consultation Scheduled',
-                'Oakland, CO',
-                'https://i.pravatar.cc/150?u=jack',
-                const Color(0xFF00BCD4),
-              ),
-              const SizedBox(height: 12),
-              _buildUserItem(
-                context,
-                'Carmen Lewis',
-                'Patient - New Registration',
-                'Milwaukee, CA',
-                'https://i.pravatar.cc/150?u=carmen',
-                const Color(0xFFFF9800),
-              ),
-            ],
-          ),
+          child: _isLoading
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : _recentPatients.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Text(
+                          'No patients registered yet',
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _recentPatients.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final patient = entry.value;
+                        final name = patient['name'] ?? 'Unknown';
+                        final email = patient['email'] ?? '';
+                        final createdAt = patient['created_at'] ?? '';
+                        
+                        String timeAgo = 'New';
+                        try {
+                          final date = DateTime.parse(createdAt);
+                          final diff = DateTime.now().difference(date);
+                          if (diff.inDays > 0) {
+                            timeAgo = '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+                          } else if (diff.inHours > 0) {
+                            timeAgo = '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+                          } else {
+                            timeAgo = 'Just now';
+                          }
+                        } catch (e) {}
+
+                        return Padding(
+                          padding: EdgeInsets.only(bottom: index < _recentPatients.length - 1 ? 12 : 0),
+                          child: _buildRealUserItem(
+                            context,
+                            name,
+                            email,
+                            timeAgo,
+                            colors[index % colors.length],
+                          ),
+                        );
+                      }).toList(),
+                    ),
         ),
       ],
     );
   }
 
-  Widget _buildUserItem(
+  Widget _buildRealUserItem(
     BuildContext context,
-    String title,
-    String subtitle,
-    String location,
-    String avatarUrl,
+    String name,
+    String email,
+    String timeAgo,
     Color iconColor,
   ) {
     return Container(
@@ -429,25 +521,26 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             width: 54,
             height: 54,
             decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [iconColor.withOpacity(0.8), iconColor],
+              ),
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withOpacity(0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(15),
-              child: CachedNetworkImage(
-                imageUrl: avatarUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: iconColor.withOpacity(0.1),
-                  child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            child: Center(
+              child: Text(
+                _getInitials(name),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                errorWidget: (context, url, error) => Icon(Icons.person, color: iconColor),
               ),
             ),
           ),
@@ -457,7 +550,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  name,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -466,7 +559,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  email,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF9E9E9E),
@@ -474,7 +567,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  location,
+                  'Registered $timeAgo',
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFFBDBDBD),

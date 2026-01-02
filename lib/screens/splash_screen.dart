@@ -112,19 +112,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                                 ),
                               ],
                             ),
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(15),
                             child: ClipOval(
-                              child: Image.network(
-                                "https://cdn-icons-png.flaticon.com/512/3845/3845868.png", // High quality medical icon
+                              child: Image.asset(
+                                'assets/images/image.png',
                                 fit: BoxFit.contain,
-                                loadingBuilder: (context, child, loadingProgress) {
-                                  if (loadingProgress == null) return child;
-                                  return const Icon(
-                                    Icons.health_and_safety,
-                                    size: 80,
-                                    color: Color(0xFF4DB8A8),
-                                  );
-                                },
                               ),
                             ),
                           ),

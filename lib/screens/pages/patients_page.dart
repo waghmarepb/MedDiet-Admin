@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
+import 'package:meddiet/constants/api_config.dart';
+import 'package:meddiet/constants/api_endpoints.dart';
+import 'package:meddiet/services/auth_service.dart';
 import 'package:meddiet/widgets/common_header.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'dart:math';
 
 class PatientsPage extends StatefulWidget {
@@ -17,24 +21,213 @@ class _PatientsPageState extends State<PatientsPage> {
   int selectedPatientIndex = 0;
   String searchQuery = '';
   String? selectedMealType;
+  
+  // API data
+  List<Map<String, dynamic>> _apiPatients = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   // Follow-up Form Controllers
   final _weightController = TextEditingController();
   final _sleepController = TextEditingController();
-  final _waterController = TextEditingController();
+  final _exerciseNameController = TextEditingController();
   final _notesController = TextEditingController();
   final _cravingsController = TextEditingController();
-  String _energyLevel = '7';
-  String _hungerLevel = '3';
+  final _supplementsController = TextEditingController();
+  
+  // Meal Controllers
+  final _breakfastController = TextEditingController();
+  final _lunchController = TextEditingController();
+  final _dinnerController = TextEditingController();
+  final _snacksController = TextEditingController();
+  
+  // Exercise checkbox state
+  bool _didExercise = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchPatients();
+  }
 
   @override
   void dispose() {
     _weightController.dispose();
     _sleepController.dispose();
-    _waterController.dispose();
+    _exerciseNameController.dispose();
     _notesController.dispose();
     _cravingsController.dispose();
+    _supplementsController.dispose();
+    _breakfastController.dispose();
+    _lunchController.dispose();
+    _dinnerController.dispose();
+    _snacksController.dispose();
     super.dispose();
+  }
+
+  // Cache for patients steps data
+  Map<String, Map<String, dynamic>> _patientsStepsData = {};
+
+  /// Fetch patients from API
+  Future<void> _fetchPatients() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      // Fetch patients and steps data in parallel
+      final responses = await Future.wait([
+        http.get(
+          Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patients}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${AuthService.token}',
+          },
+        ),
+        http.get(
+          Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientsStepsToday}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${AuthService.token}',
+          },
+        ),
+      ]);
+
+      final patientsResponse = responses[0];
+      final stepsResponse = responses[1];
+
+      debugPrint('Patients API Response: ${patientsResponse.statusCode}');
+      debugPrint('Steps API Response: ${stepsResponse.statusCode}');
+
+      // Process steps data first
+      if (stepsResponse.statusCode == 200) {
+        final stepsData = jsonDecode(stepsResponse.body);
+        if (stepsData['success'] == true && stepsData['data'] != null) {
+          final List<dynamic> stepsList = stepsData['data'];
+          for (var step in stepsList) {
+            final patientId = step['patient_id']?.toString() ?? '';
+            if (patientId.isNotEmpty) {
+              _patientsStepsData[patientId] = {
+                'steps': _parseInt(step['steps']),
+                'targetSteps': _parseInt(step['target_steps']),
+                'status': step['status'] ?? 'unknown',
+                'caloriesBurned': _parseDouble(step['calories_burned']),
+                'distanceKm': _parseDouble(step['distance_km']),
+                'lastSync': step['last_sync'],
+              };
+            }
+          }
+          debugPrint('Loaded steps for ${_patientsStepsData.length} patients');
+        }
+      }
+
+      // Process patients data
+      if (patientsResponse.statusCode == 200) {
+        final data = jsonDecode(patientsResponse.body);
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> patientsData = data['data'];
+          setState(() {
+            _apiPatients = patientsData.map((p) => _mapPatientData(p)).toList();
+            _isLoading = false;
+          });
+          debugPrint('Loaded ${_apiPatients.length} patients from API');
+        } else {
+          setState(() {
+            _errorMessage = data['message'] ?? 'Failed to load patients';
+            _isLoading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _errorMessage = 'Server error: ${patientsResponse.statusCode}';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching patients: $e');
+      setState(() {
+        _errorMessage = 'Network error: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  /// Parse dynamic value to double (handles strings and numbers)
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  /// Parse dynamic value to int (handles strings and numbers)
+  int _parseInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  /// Map API patient data to UI format
+  Map<String, dynamic> _mapPatientData(Map<String, dynamic> apiPatient) {
+    final weight = _parseDouble(apiPatient['weight']);
+    final height = _parseDouble(apiPatient['height']);
+    final patientId = apiPatient['patient_id']?.toString() ?? '';
+    
+    // Get steps data for this patient
+    final stepsData = _patientsStepsData[patientId] ?? {};
+    final steps = stepsData['steps'] ?? 0;
+    final targetSteps = stepsData['targetSteps'] ?? 10000;
+    final caloriesBurned = stepsData['caloriesBurned'] ?? 0.0;
+    final distanceKm = stepsData['distanceKm'] ?? 0.0;
+    
+    return {
+      'name': apiPatient['name'] ?? 'Unknown',
+      'id': patientId,
+      'age': _parseInt(apiPatient['age']),
+      'gender': apiPatient['gender'] ?? 'Unknown',
+      'phone': apiPatient['phone'] ?? '',
+      'email': apiPatient['email'] ?? '',
+      'plan': 'MedDiet Program',
+      'status': 'Active',
+      'avatar': apiPatient['profile_image'] ?? 'https://i.pravatar.cc/150?u=$patientId',
+      // Health Metrics (with real steps data from API)
+      'weight': weight,
+      'height': height,
+      'bmi': _calculateBMI(weight, height),
+      'targetWeight': 0.0,
+      'steps': steps,
+      'targetSteps': targetSteps,
+      'caloriesBurned': caloriesBurned,
+      'caloriesIntake': 0,
+      'targetCalories': 2000,
+      'waterIntake': 0,
+      'targetWater': 8,
+      'sleepHours': 0.0,
+      'heartRate': 0,
+      'bloodPressure': 'N/A',
+      'bloodSugar': 0,
+      'bloodType': apiPatient['blood_type'] ?? 'Unknown',
+      'exerciseMinutes': 0,
+      'targetExercise': 60,
+      'workoutType': 'N/A',
+      'distanceKm': distanceKm,
+      'mealsToday': [],
+      'weightProgress': [],
+      'lastVisit': 'N/A',
+      'nextAppointment': 'N/A',
+      'createdAt': apiPatient['created_at'] ?? '',
+    };
+  }
+
+  double _calculateBMI(double weight, double height) {
+    if (weight <= 0 || height <= 0) return 0.0;
+    // BMI = weight(kg) / height(m)^2
+    final heightInMeters = height / 100;
+    return double.parse((weight / (heightInMeters * heightInMeters)).toStringAsFixed(1));
   }
 
   // Store passwords for each patient (in real app, this would be in database)
@@ -1609,8 +1802,11 @@ MedDiet Team
     );
   }
 
-  // Sample patient data with health metrics
-  final List<Map<String, dynamic>> patients = [
+  // Get patients - use API data if available, otherwise fallback to sample
+  List<Map<String, dynamic>> get patients => _apiPatients.isNotEmpty ? _apiPatients : _samplePatients;
+
+  // Sample patient data with health metrics (fallback)
+  final List<Map<String, dynamic>> _samplePatients = [
     {
       'name': 'Sarah Johnson',
       'id': 'PT-001',
@@ -1820,8 +2016,13 @@ MedDiet Team
     }).toList();
   }
 
-  Map<String, dynamic> get selectedPatient =>
-      filteredPatients[selectedPatientIndex];
+  Map<String, dynamic>? get selectedPatient {
+    if (filteredPatients.isEmpty) return null;
+    if (selectedPatientIndex >= filteredPatients.length) {
+      return filteredPatients.first;
+    }
+    return filteredPatients[selectedPatientIndex];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1866,17 +2067,44 @@ MedDiet Team
               ),
             ),
             Expanded(
-              child: Row(
-                children: [
-                  // Left Side - Patient List (30%)
-                  SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.27,
-                    child: _buildPatientList(),
-                  ),
-                  // Right Side - Patient Details (70%)
-                  Expanded(child: _buildPatientDetails()),
-                ],
-              ),
+              child: _isLoading
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Loading patients...'),
+                        ],
+                      ),
+                    )
+                  : _errorMessage != null && _apiPatients.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.error_outline, size: 48, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _fetchPatients,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : Row(
+                          children: [
+                            // Left Side - Patient List (30%)
+                            SizedBox(
+                              width: MediaQuery.of(context).size.width * 0.27,
+                              child: _buildPatientList(),
+                            ),
+                            // Right Side - Patient Details (70%)
+                            Expanded(child: _buildPatientDetails()),
+                          ],
+                        ),
             ),
           ],
         ),
@@ -2030,7 +2258,7 @@ MedDiet Team
               ],
             ),
             const SizedBox(width: 10),
-            // Compact Avatar
+            // Compact Avatar with Initials
             Container(
               width: 42,
               height: 42,
@@ -2047,29 +2275,13 @@ MedDiet Team
                       ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: CachedNetworkImage(
-                  imageUrl: patient['avatar'],
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: Colors.white.withOpacity(0.1),
-                    child: const Center(
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Center(
-                    child: Text(
-                      patient['name'][0],
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              child: Center(
+                child: Text(
+                  _getInitials(patient['name'] ?? ''),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -2135,6 +2347,32 @@ MedDiet Team
   Widget _buildPatientDetails() {
     final patient = selectedPatient;
 
+    // Handle empty patients list
+    if (patient == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'No patients found',
+              style: TextStyle(
+                fontSize: 18,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Patients registered with your referral code will appear here',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(30),
       child: Column(
@@ -2193,7 +2431,21 @@ MedDiet Team
     );
   }
 
+  /// Get initials from patient name (e.g., "Sagar Kumbhar" -> "SK")
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    } else if (parts.isNotEmpty && parts[0].isNotEmpty) {
+      return parts[0][0].toUpperCase();
+    }
+    return '?';
+  }
+
   Widget _buildPatientHeader(Map<String, dynamic> patient) {
+    final initials = _getInitials(patient['name'] ?? '');
+    
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
@@ -2213,7 +2465,7 @@ MedDiet Team
       ),
       child: Row(
         children: [
-          // Avatar with shadow
+          // Avatar with initials
           Container(
             width: 90,
             height: 90,
@@ -2230,7 +2482,7 @@ MedDiet Team
             ),
             child: Center(
               child: Text(
-                patient['avatar'],
+                initials,
                 style: TextStyle(
                   color: AppColors.primary,
                   fontSize: 36,
@@ -3115,7 +3367,66 @@ MedDiet Team
   }
 
   Widget _buildMealsSection(Map<String, dynamic> patient) {
-    final meals = patient['mealsToday'] as List;
+    final meals = patient['mealsToday'] as List? ?? [];
+
+    // Handle empty meals list
+    if (meals.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, AppColors.success.withOpacity(0.02)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.success.withOpacity(0.2),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.restaurant,
+                    color: AppColors.success,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  "Today's Meals",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No meal data available yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -3371,7 +3682,22 @@ MedDiet Team
     );
   }
 
+  void _clearFollowUpForm() {
+    _weightController.clear();
+    _sleepController.clear();
+    _exerciseNameController.clear();
+    _notesController.clear();
+    _cravingsController.clear();
+    _supplementsController.clear();
+    _breakfastController.clear();
+    _lunchController.clear();
+    _dinnerController.clear();
+    _snacksController.clear();
+    _didExercise = false;
+  }
+
   void _showFollowUpDialog(Map<String, dynamic> patient) {
+    _clearFollowUpForm(); // Clear form before showing
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -3440,7 +3766,9 @@ MedDiet Team
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Row 1: Weight & Sleep
                         Row(
                           children: [
                             Expanded(
@@ -3463,106 +3791,167 @@ MedDiet Team
                           ],
                         ),
                         const SizedBox(height: 20),
+                        
+                        // Exercise Section with Checkbox
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FA),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E5E5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.fitness_center, color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Exercise',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2D3142),
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Transform.scale(
+                                    scale: 1.1,
+                                    child: Checkbox(
+                                      value: _didExercise,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          _didExercise = value ?? false;
+                                          if (!_didExercise) {
+                                            _exerciseNameController.clear();
+                                          }
+                                        });
+                                      },
+                                      activeColor: AppColors.primary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Did exercise today?',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (_didExercise) ...[
+                                const SizedBox(height: 12),
+                                TextField(
+                                  controller: _exerciseNameController,
+                                  decoration: InputDecoration(
+                                    hintText: 'Enter exercise details (e.g., 30 min walking, yoga, gym)',
+                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: BorderSide(color: AppColors.primary, width: 2),
+                                    ),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Meals Section
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FA),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E5E5)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.restaurant_menu, color: AppColors.success, size: 20),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'Meals Today',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF2D3142),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildMealField(
+                                      label: '🌅 Breakfast',
+                                      controller: _breakfastController,
+                                      hint: 'e.g., Oatmeal, eggs',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildMealField(
+                                      label: '☀️ Lunch',
+                                      controller: _lunchController,
+                                      hint: 'e.g., Salad, grilled chicken',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildMealField(
+                                      label: '🌙 Dinner',
+                                      controller: _dinnerController,
+                                      hint: 'e.g., Fish, vegetables',
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildMealField(
+                                      label: '🍎 Snacks',
+                                      controller: _snacksController,
+                                      hint: 'e.g., Fruits, nuts',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Supplements & Cravings Row
                         Row(
                           children: [
                             Expanded(
                               child: _buildFollowUpField(
-                                label: 'Water Intake (L)',
-                                controller: _waterController,
-                                icon: Icons.water_drop_outlined,
-                                hint: 'e.g. 3.5',
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Energy Level (1-10)',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF9E9E9E),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8F9FA),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE5E5E5)),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: _energyLevel,
-                                        isExpanded: true,
-                                        icon: Icon(Icons.keyboard_arrow_down, size: 20, color: AppColors.primary),
-                                        items: List.generate(10, (index) => (index + 1).toString())
-                                            .map((String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value, style: const TextStyle(fontSize: 14)),
-                                          );
-                                        }).toList(),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _energyLevel = value!;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'Hunger Level (1-10)',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF9E9E9E),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF8F9FA),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: const Color(0xFFE5E5E5)),
-                                    ),
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<String>(
-                                        value: _hungerLevel,
-                                        isExpanded: true,
-                                        icon: Icon(Icons.keyboard_arrow_down, size: 20, color: AppColors.primary),
-                                        items: List.generate(10, (index) => (index + 1).toString())
-                                            .map((String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value, style: const TextStyle(fontSize: 14)),
-                                          );
-                                        }).toList(),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            _hungerLevel = value!;
-                                          });
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                label: 'Supplements Taken',
+                                controller: _supplementsController,
+                                icon: Icons.medication_outlined,
+                                hint: 'e.g., Vitamin D, Omega-3',
                               ),
                             ),
                             const SizedBox(width: 20),
@@ -3571,12 +3960,14 @@ MedDiet Team
                                 label: 'Any Cravings?',
                                 controller: _cravingsController,
                                 icon: Icons.fastfood_outlined,
-                                hint: 'e.g. Sweets, Salty',
+                                hint: 'e.g., Sweets, Salty',
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
+                        
+                        // Clinical Notes
                         _buildFollowUpField(
                           label: 'Diet Adherence & Clinical Notes',
                           controller: _notesController,
@@ -3702,6 +4093,50 @@ MedDiet Team
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMealField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          style: const TextStyle(fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: AppColors.success, width: 1.5),
             ),
           ),
         ),
@@ -4054,8 +4489,64 @@ MedDiet Team
   }
 
   Widget _buildWeightProgressCard(Map<String, dynamic> patient) {
-    final progressRaw = patient['weightProgress'] as List;
+    final progressRaw = patient['weightProgress'] as List? ?? [];
     final progress = progressRaw.map((e) => (e as num).toDouble()).toList();
+
+    // Handle empty progress list
+    if (progress.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.white, Colors.grey.shade50],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE8E8E8)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.trending_down,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Weight Progress',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No weight data available yet',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(26),
