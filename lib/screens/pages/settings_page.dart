@@ -180,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
@@ -205,7 +205,7 @@ class _SettingsPageState extends State<SettingsPage> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        hoverColor: AppColors.primary.withOpacity(0.05),
+        hoverColor: AppColors.primary.withValues(alpha: 0.05),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
@@ -221,7 +221,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
@@ -289,7 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -327,7 +327,7 @@ class _SettingsPageState extends State<SettingsPage> {
               value: enabled ? value : false,
               onChanged: enabled ? onChanged : null,
               activeColor: AppColors.primary,
-              activeTrackColor: AppColors.primary.withOpacity(0.3),
+              activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
               inactiveThumbColor: AppColors.textSecondary,
               inactiveTrackColor: AppColors.border,
             ),
@@ -360,7 +360,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
+              color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -424,7 +424,7 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.2),
+            color: AppColors.primary.withValues(alpha: 0.2),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -444,14 +444,14 @@ class _SettingsPageState extends State<SettingsPage> {
           Text(
             'Version 1.0.0',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textWhite.withOpacity(0.9),
+              color: AppColors.textWhite.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'The MedDiet Admin panel is designed to help you manage your medical diet plans efficiently.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.textWhite.withOpacity(0.8),
+              color: AppColors.textWhite.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 16),
@@ -472,7 +472,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: ElevatedButton(
                   onPressed: () => _handleContactSupportTap(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white.withOpacity(0.2),
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Contact Support'),
@@ -537,4 +537,5 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 }
+
 

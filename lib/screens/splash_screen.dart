@@ -78,12 +78,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             Positioned(
               top: -50,
               right: -50,
-              child: _buildDecorativeCircle(200, Colors.white.withOpacity(0.1)),
+              child: _buildDecorativeCircle(200, Colors.white.withValues(alpha: 0.1)),
             ),
             Positioned(
               bottom: -30,
               left: -30,
-              child: _buildDecorativeCircle(150, Colors.white.withOpacity(0.1)),
+              child: _buildDecorativeCircle(150, Colors.white.withValues(alpha: 0.1)),
             ),
             
             Center(
@@ -106,7 +106,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.15),
+                                  color: Colors.black.withValues(alpha: 0.15),
                                   blurRadius: 30,
                                   spreadRadius: 5,
                                 ),
@@ -144,7 +144,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             'Healthcare Management System',
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                               fontWeight: FontWeight.w300,
                               letterSpacing: 1.2,
                             ),
@@ -164,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               Text(
                                 "Initializing...",
                                 style: TextStyle(
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: Colors.white.withValues(alpha: 0.7),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -195,4 +195,5 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     );
   }
 }
+
 

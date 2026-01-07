@@ -1,14 +1,20 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/services/auth_service.dart';
+import 'package:meddiet/services/plan_service.dart';
+import 'package:meddiet/models/meal.dart';
+import 'package:meddiet/models/exercise.dart';
+import 'package:meddiet/models/supplement.dart';
 import 'package:meddiet/widgets/common_header.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math';
+import 'package:intl/intl.dart';
 
 class PatientsPage extends StatefulWidget {
   const PatientsPage({super.key});
@@ -21,7 +27,7 @@ class _PatientsPageState extends State<PatientsPage> {
   int selectedPatientIndex = 0;
   String searchQuery = '';
   String? selectedMealType;
-  
+
   // API data
   List<Map<String, dynamic>> _apiPatients = [];
   bool _isLoading = true;
@@ -34,20 +40,132 @@ class _PatientsPageState extends State<PatientsPage> {
   final _notesController = TextEditingController();
   final _cravingsController = TextEditingController();
   final _supplementsController = TextEditingController();
-  
+
   // Meal Controllers
   final _breakfastController = TextEditingController();
   final _lunchController = TextEditingController();
   final _dinnerController = TextEditingController();
   final _snacksController = TextEditingController();
-  
+
+  // Add Meal Dialog Controllers
+  final _mealNameController = TextEditingController();
+  final _mealCaloriesController = TextEditingController();
+  final _mealTimeController = TextEditingController();
+  final _mealDescriptionController = TextEditingController();
+  final _mealProteinController = TextEditingController();
+  final _mealCarbsController = TextEditingController();
+  final _mealFatsController = TextEditingController();
+
+  // Add Exercise Dialog Controllers
+  final _exerciseDurationController = TextEditingController();
+  final _exerciseCaloriesController = TextEditingController();
+  final _exerciseTimeController = TextEditingController();
+  final _exerciseInstructionsController = TextEditingController();
+  String? selectedExerciseType;
+
+  // Add Supplement Dialog Controllers
+  final _supplementNameController = TextEditingController();
+  final _supplementDosageController = TextEditingController();
+  final _supplementTimeController = TextEditingController();
+  final _supplementInstructionsController = TextEditingController();
+  final _supplementStartDateController = TextEditingController();
+  final _supplementEndDateController = TextEditingController();
+  String? selectedSupplementFrequency;
+
   // Exercise checkbox state
   bool _didExercise = false;
+  bool _isAddingMeal = false;
+  bool _isAddingExercise = false;
+  bool _isAddingSupplement = false;
+
+  Timer? _refreshTimer;
+
+  // Track completion status for real-time updates
+  final Map<String, bool> _mealCompletionStatus = {};
+  final Map<String, bool> _exerciseCompletionStatus = {};
+  final Map<String, bool> _supplementCompletionStatus = {};
 
   @override
   void initState() {
     super.initState();
     _fetchPatients();
+    // Auto-refresh only completion status every 3 seconds (lightweight)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted) {
+        _refreshCompletionStatus();
+      }
+    });
+  }
+
+  /// Lightweight refresh - only fetch completion status for current patient
+  Future<void> _refreshCompletionStatus() async {
+    if (_apiPatients.isEmpty || selectedPatientIndex >= _apiPatients.length) {
+      return;
+    }
+
+    final patient = _apiPatients[selectedPatientIndex];
+    final patientId = patient['id'] as String;
+    final today = DateTime.now().toIso8601String().split('T')[0];
+
+    try {
+      // Fetch only today's meals, exercises, and supplements (lightweight)
+      final results = await Future.wait([
+        PlanService.getMeals(patientId, date: today),
+        PlanService.getExercises(patientId, date: today),
+        PlanService.getSupplements(patientId),
+      ]);
+
+      if (mounted) {
+        setState(() {
+          // Update meals
+          if (results[0].success && results[0].data != null) {
+            final mealsList = results[0].data as List<Meal>;
+            final meals = mealsList.map((m) => m.toJson()).toList();
+            patient['mealsToday'] = meals;
+
+            // Track completion status
+            for (var meal in meals) {
+              final mealId = meal['id'].toString();
+              _mealCompletionStatus[mealId] =
+                  meal['is_completed'] == true || meal['is_completed'] == 1;
+            }
+          }
+
+          // Update exercises
+          if (results[1].success && results[1].data != null) {
+            final exercisesList = results[1].data as List<Exercise>;
+            final exercises = exercisesList.map((e) => e.toJson()).toList();
+            patient['exercisesToday'] = exercises;
+
+            // Track completion status
+            for (var exercise in exercises) {
+              final exerciseId = exercise['id'].toString();
+              _exerciseCompletionStatus[exerciseId] =
+                  exercise['is_completed'] == true ||
+                  exercise['is_completed'] == 1;
+            }
+          }
+
+          // Update supplements
+          if (results[2].success && results[2].data != null) {
+            final supplementsList = results[2].data as List<Supplement>;
+            final supplements = supplementsList.map((s) => s.toJson()).toList();
+            patient['supplementsToday'] = supplements;
+
+            // Track completion status
+            for (var supplement in supplements) {
+              final supplementId = supplement['id'].toString();
+              _supplementCompletionStatus[supplementId] =
+                  supplement['is_completed'] == true ||
+                  supplement['is_completed'] == 1;
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing completion status: $e');
+      // Silently fail - don't show errors to user during background refresh
+    }
   }
 
   @override
@@ -62,11 +180,38 @@ class _PatientsPageState extends State<PatientsPage> {
     _lunchController.dispose();
     _dinnerController.dispose();
     _snacksController.dispose();
+    _mealNameController.dispose();
+    _mealCaloriesController.dispose();
+    _mealTimeController.dispose();
+    _mealDescriptionController.dispose();
+    _mealProteinController.dispose();
+    _mealCarbsController.dispose();
+    _mealFatsController.dispose();
+    _exerciseDurationController.dispose();
+    _exerciseCaloriesController.dispose();
+    _exerciseTimeController.dispose();
+    _exerciseInstructionsController.dispose();
+    _supplementNameController.dispose();
+    _supplementDosageController.dispose();
+    _supplementTimeController.dispose();
+    _supplementInstructionsController.dispose();
+    _supplementStartDateController.dispose();
+    _supplementEndDateController.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
   }
 
   // Cache for patients steps data
-  Map<String, Map<String, dynamic>> _patientsStepsData = {};
+  final Map<String, Map<String, dynamic>> _patientsStepsData = {};
+
+  // Cache for patients meals data
+  final Map<String, List<dynamic>> _patientsMealsData = {};
+
+  // Cache for patients exercises data
+  final Map<String, List<dynamic>> _patientsExercisesData = {};
+
+  // Cache for patients supplements data
+  final Map<String, List<dynamic>> _patientsSupplementsData = {};
 
   /// Fetch patients from API
   Future<void> _fetchPatients() async {
@@ -127,6 +272,15 @@ class _PatientsPageState extends State<PatientsPage> {
         final data = jsonDecode(patientsResponse.body);
         if (data['success'] == true && data['data'] != null) {
           final List<dynamic> patientsData = data['data'];
+
+          // Fetch data for each patient in parallel
+          debugPrint('📡 Fetching data for ${patientsData.length} patients...');
+          await Future.wait([
+            _fetchMealsForPatients(patientsData),
+            _fetchExercisesForPatients(patientsData),
+            _fetchSupplementsForPatients(patientsData),
+          ]);
+
           setState(() {
             _apiPatients = patientsData.map((p) => _mapPatientData(p)).toList();
             _isLoading = false;
@@ -153,6 +307,137 @@ class _PatientsPageState extends State<PatientsPage> {
     }
   }
 
+  /// Fetch meals for all patients
+  Future<void> _fetchMealsForPatients(List<dynamic> patientsData) async {
+    try {
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // Fetch meals for each patient in parallel
+      final mealsFutures = patientsData.map((patient) async {
+        final patientId = patient['patient_id']?.toString() ?? '';
+        if (patientId.isEmpty) return;
+
+        try {
+          final response = await http.get(
+            Uri.parse(
+              '${ApiConfig.baseUrl}${ApiEndpoints.patientMeals(patientId)}?date=$today',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${AuthService.token}',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data['success'] == true && data['data'] != null) {
+              _patientsMealsData[patientId] = data['data'] as List<dynamic>;
+              debugPrint(
+                '✅ Loaded ${_patientsMealsData[patientId]?.length ?? 0} meals for patient $patientId',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error fetching meals for patient $patientId: $e');
+        }
+      }).toList();
+
+      await Future.wait(mealsFutures);
+      debugPrint(
+        '📊 Total meals loaded for ${_patientsMealsData.length} patients',
+      );
+    } catch (e) {
+      debugPrint('❌ Error in _fetchMealsForPatients: $e');
+    }
+  }
+
+  /// Fetch exercises for all patients
+  Future<void> _fetchExercisesForPatients(List<dynamic> patientsData) async {
+    try {
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // Fetch exercises for each patient in parallel
+      final exercisesFutures = patientsData.map((patient) async {
+        final patientId = patient['patient_id']?.toString() ?? '';
+        if (patientId.isEmpty) return;
+
+        try {
+          final response = await http.get(
+            Uri.parse(
+              '${ApiConfig.baseUrl}${ApiEndpoints.patientExercises(patientId)}?date=$today',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${AuthService.token}',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data['success'] == true && data['data'] != null) {
+              _patientsExercisesData[patientId] = data['data'] as List<dynamic>;
+              debugPrint(
+                '✅ Loaded ${_patientsExercisesData[patientId]?.length ?? 0} exercises for patient $patientId',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error fetching exercises for patient $patientId: $e');
+        }
+      }).toList();
+
+      await Future.wait(exercisesFutures);
+      debugPrint(
+        '📊 Total exercises loaded for ${_patientsExercisesData.length} patients',
+      );
+    } catch (e) {
+      debugPrint('❌ Error in _fetchExercisesForPatients: $e');
+    }
+  }
+
+  /// Fetch supplements for all patients
+  Future<void> _fetchSupplementsForPatients(List<dynamic> patientsData) async {
+    try {
+      // Fetch supplements for each patient in parallel
+      final supplementsFutures = patientsData.map((patient) async {
+        final patientId = patient['patient_id']?.toString() ?? '';
+        if (patientId.isEmpty) return;
+
+        try {
+          final response = await http.get(
+            Uri.parse(
+              '${ApiConfig.baseUrl}${ApiEndpoints.patientSupplements(patientId)}',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${AuthService.token}',
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data['success'] == true && data['data'] != null) {
+              _patientsSupplementsData[patientId] =
+                  data['data'] as List<dynamic>;
+              debugPrint(
+                '✅ Loaded ${_patientsSupplementsData[patientId]?.length ?? 0} supplements for patient $patientId',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error fetching supplements for patient $patientId: $e');
+        }
+      }).toList();
+
+      await Future.wait(supplementsFutures);
+      debugPrint(
+        '📊 Total supplements loaded for ${_patientsSupplementsData.length} patients',
+      );
+    } catch (e) {
+      debugPrint('❌ Error in _fetchSupplementsForPatients: $e');
+    }
+  }
+
   /// Parse dynamic value to double (handles strings and numbers)
   double _parseDouble(dynamic value) {
     if (value == null) return 0.0;
@@ -160,6 +445,74 @@ class _PatientsPageState extends State<PatientsPage> {
     if (value is int) return value.toDouble();
     if (value is String) return double.tryParse(value) ?? 0.0;
     return 0.0;
+  }
+
+  /// Calculate patient's today's progress percentage
+  int _calculatePatientProgress(String patientId) {
+    // Get today's data for the patient
+    final meals = _patientsMealsData[patientId] ?? [];
+    final exercises = _patientsExercisesData[patientId] ?? [];
+    final supplements = _patientsSupplementsData[patientId] ?? [];
+    final stepsData = _patientsStepsData[patientId];
+
+    // Count completed items
+    final completedMeals = meals
+        .where(
+          (m) =>
+              m['is_completed'] == true ||
+              m['is_completed'] == 1 ||
+              m['is_completed'] == '1' ||
+              m['is_completed'] == 'true',
+        )
+        .length;
+    final completedExercises = exercises
+        .where(
+          (e) =>
+              e['is_completed'] == true ||
+              e['is_completed'] == 1 ||
+              e['is_completed'] == '1' ||
+              e['is_completed'] == 'true',
+        )
+        .length;
+    final completedSupplements = supplements
+        .where(
+          (s) =>
+              s['is_completed'] == true ||
+              s['is_completed'] == 1 ||
+              s['is_completed'] == '1' ||
+              s['is_completed'] == 'true',
+        )
+        .length;
+
+    // Calculate steps progress (0 or 1 task)
+    double stepsProgress = 0.0;
+    if (stepsData != null) {
+      final currentSteps = (stepsData['steps'] ?? 0).toDouble();
+      final targetSteps = (stepsData['target_steps'] ?? 10000).toDouble();
+      stepsProgress = targetSteps > 0
+          ? (currentSteps / targetSteps).clamp(0.0, 1.0)
+          : 0.0;
+    }
+
+    // Total tasks = meals + exercises + supplements + steps
+    final totalTasks =
+        meals.length +
+        exercises.length +
+        supplements.length +
+        (stepsData != null ? 1 : 0);
+
+    if (totalTasks == 0) return 0;
+
+    // Completed tasks = completed items + steps progress
+    final completedTasks =
+        completedMeals +
+        completedExercises +
+        completedSupplements +
+        stepsProgress;
+
+    // Calculate percentage
+    final percentage = ((completedTasks / totalTasks) * 100).round();
+    return percentage.clamp(0, 100);
   }
 
   /// Parse dynamic value to int (handles strings and numbers)
@@ -176,24 +529,94 @@ class _PatientsPageState extends State<PatientsPage> {
     final weight = _parseDouble(apiPatient['weight']);
     final height = _parseDouble(apiPatient['height']);
     final patientId = apiPatient['patient_id']?.toString() ?? '';
-    
+
     // Get steps data for this patient
     final stepsData = _patientsStepsData[patientId] ?? {};
     final steps = stepsData['steps'] ?? 0;
     final targetSteps = stepsData['targetSteps'] ?? 10000;
     final caloriesBurned = stepsData['caloriesBurned'] ?? 0.0;
     final distanceKm = stepsData['distanceKm'] ?? 0.0;
-    
+
+    // Get meals data for this patient and transform to UI format
+    final mealsData = _patientsMealsData[patientId] ?? [];
+    final mealsToday = mealsData.map((meal) {
+      return {
+        'id': meal['id'],
+        'meal_name': meal['meal_name'] ?? 'Unknown Meal',
+        'name': meal['meal_name'] ?? 'Unknown Meal',
+        'time': meal['time'] ?? 'N/A',
+        'calories': _parseInt(meal['calories']),
+        'meal_type': meal['meal_type'] ?? 'other',
+        'type': meal['meal_type'] ?? 'other',
+        'description': meal['description'],
+        'protein': meal['protein'],
+        'carbs': meal['carbs'],
+        'fats': meal['fats'],
+        'is_completed': meal['is_completed'] ?? false,
+      };
+    }).toList();
+
+    // Calculate total calories from meals
+    int totalCalories = 0;
+    for (var meal in mealsData) {
+      totalCalories += _parseInt(meal['calories']);
+    }
+
+    // Get exercises data for this patient and transform to UI format
+    final exercisesData = _patientsExercisesData[patientId] ?? [];
+    final exercisesToday = exercisesData.map((exercise) {
+      final durationMins = _parseInt(exercise['duration_mins']);
+      return {
+        'id': exercise['id'],
+        'exercise_name': exercise['exercise_name'] ?? 'Unknown Exercise',
+        'name': exercise['exercise_name'] ?? 'Unknown Exercise',
+        'exercise_type': exercise['exercise_type'] ?? 'other',
+        'type': exercise['exercise_type'] ?? 'other',
+        'duration': '$durationMins min',
+        'time': exercise['time'] ?? 'Not specified',
+        'calories': _parseInt(exercise['calories_burn']),
+        'caloriesBurn': _parseInt(exercise['calories_burn']),
+        'instructions': exercise['instructions'],
+        'is_completed': exercise['is_completed'] ?? false,
+      };
+    }).toList();
+
+    // Calculate total exercise minutes
+    int totalExerciseMinutes = 0;
+    for (var exercise in exercisesData) {
+      totalExerciseMinutes += _parseInt(exercise['duration_mins']);
+    }
+
+    // Get supplements data for this patient and transform to UI format
+    final supplementsData = _patientsSupplementsData[patientId] ?? [];
+    final supplementsToday = supplementsData.map((supplement) {
+      return {
+        'id': supplement['id'],
+        'supplement_name':
+            supplement['supplement_name'] ?? 'Unknown Supplement',
+        'name': supplement['supplement_name'] ?? 'Unknown Supplement',
+        'dosage': supplement['dosage'] ?? 'N/A',
+        'frequency': supplement['frequency'] ?? 'N/A',
+        'instructions': supplement['instructions'],
+        'startDate': supplement['start_date'],
+        'endDate': supplement['end_date'],
+        'is_completed': supplement['is_completed'] ?? false,
+      };
+    }).toList();
+
     return {
       'name': apiPatient['name'] ?? 'Unknown',
       'id': patientId,
+      'patient_id': patientId,
       'age': _parseInt(apiPatient['age']),
       'gender': apiPatient['gender'] ?? 'Unknown',
       'phone': apiPatient['phone'] ?? '',
       'email': apiPatient['email'] ?? '',
       'plan': 'MedDiet Program',
       'status': 'Active',
-      'avatar': apiPatient['profile_image'] ?? 'https://i.pravatar.cc/150?u=$patientId',
+      'avatar':
+          apiPatient['profile_image'] ??
+          'https://i.pravatar.cc/150?u=$patientId',
       // Health Metrics (with real steps data from API)
       'weight': weight,
       'height': height,
@@ -202,7 +625,7 @@ class _PatientsPageState extends State<PatientsPage> {
       'steps': steps,
       'targetSteps': targetSteps,
       'caloriesBurned': caloriesBurned,
-      'caloriesIntake': 0,
+      'caloriesIntake': totalCalories,
       'targetCalories': 2000,
       'waterIntake': 0,
       'targetWater': 8,
@@ -211,11 +634,13 @@ class _PatientsPageState extends State<PatientsPage> {
       'bloodPressure': 'N/A',
       'bloodSugar': 0,
       'bloodType': apiPatient['blood_type'] ?? 'Unknown',
-      'exerciseMinutes': 0,
+      'exerciseMinutes': totalExerciseMinutes,
       'targetExercise': 60,
       'workoutType': 'N/A',
       'distanceKm': distanceKm,
-      'mealsToday': [],
+      'mealsToday': mealsToday,
+      'exercisesToday': exercisesToday,
+      'supplementsToday': supplementsToday,
       'weightProgress': [],
       'lastVisit': 'N/A',
       'nextAppointment': 'N/A',
@@ -227,11 +652,13 @@ class _PatientsPageState extends State<PatientsPage> {
     if (weight <= 0 || height <= 0) return 0.0;
     // BMI = weight(kg) / height(m)^2
     final heightInMeters = height / 100;
-    return double.parse((weight / (heightInMeters * heightInMeters)).toStringAsFixed(1));
+    return double.parse(
+      (weight / (heightInMeters * heightInMeters)).toStringAsFixed(1),
+    );
   }
 
   // Store passwords for each patient (in real app, this would be in database)
-  final Map<String, String> _patientPasswords = {};
+  final Map<String, String> patientPasswords = {};
 
   String _generatePassword() {
     const chars =
@@ -244,10 +671,10 @@ class _PatientsPageState extends State<PatientsPage> {
   }
 
   String _getOrCreatePassword(String patientId) {
-    if (!_patientPasswords.containsKey(patientId)) {
-      _patientPasswords[patientId] = _generatePassword();
+    if (!patientPasswords.containsKey(patientId)) {
+      patientPasswords[patientId] = _generatePassword();
     }
-    return _patientPasswords[patientId]!;
+    return patientPasswords[patientId]!;
   }
 
   void _shareCredentialsViaWhatsApp(Map<String, dynamic> patient) async {
@@ -311,7 +738,7 @@ MedDiet Team
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -339,9 +766,11 @@ MedDiet Team
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  border: Border.all(
+                    color: Colors.orange.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Row(
                   children: [
@@ -366,7 +795,7 @@ MedDiet Team
             ElevatedButton(
               onPressed: () {
                 setState(() {
-                  _patientPasswords[patient['id']] = _generatePassword();
+                  patientPasswords[patient['id']] = _generatePassword();
                 });
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -416,7 +845,7 @@ MedDiet Team
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
+                  color: Colors.green.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.share, color: Colors.green, size: 20),
@@ -443,7 +872,7 @@ MedDiet Team
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
@@ -467,7 +896,1794 @@ MedDiet Team
     );
   }
 
+  // Convert meal type display name to API format
+  String _convertMealTypeToApi(String displayType) {
+    switch (displayType) {
+      case 'Breakfast':
+        return 'breakfast';
+      case 'Morning Snack':
+        return 'mid_morning';
+      case 'Lunch':
+        return 'lunch';
+      case 'Afternoon Snack':
+      case 'Evening Snack':
+        return 'evening_snack';
+      case 'Dinner':
+        return 'dinner';
+      default:
+        return 'breakfast';
+    }
+  }
+
+  // Convert API meal type to display name
+  String _convertMealTypeToDisplay(String apiType) {
+    switch (apiType) {
+      case 'breakfast':
+        return 'Breakfast';
+      case 'mid_morning':
+        return 'Morning Snack';
+      case 'lunch':
+        return 'Lunch';
+      case 'evening_snack':
+        return 'Evening Snack';
+      case 'dinner':
+        return 'Dinner';
+      default:
+        return apiType;
+    }
+  }
+
+  // Get color for meal type
+  Color _getMealTypeColor(String apiType) {
+    switch (apiType) {
+      case 'breakfast':
+        return Colors.orange;
+      case 'mid_morning':
+        return Colors.green;
+      case 'lunch':
+        return Colors.blue;
+      case 'evening_snack':
+        return Colors.purple;
+      case 'dinner':
+        return Colors.indigo;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Get icon for meal type
+  IconData _getMealTypeIcon(String apiType) {
+    switch (apiType) {
+      case 'breakfast':
+        return Icons.wb_sunny;
+      case 'mid_morning':
+        return Icons.coffee;
+      case 'lunch':
+        return Icons.restaurant;
+      case 'evening_snack':
+        return Icons.local_cafe;
+      case 'dinner':
+        return Icons.dinner_dining;
+      default:
+        return Icons.restaurant;
+    }
+  }
+
+  // Get list of already added meal types for today
+  Set<String> _getUsedMealTypes() {
+    if (selectedPatientIndex < 0 || selectedPatientIndex >= patients.length) {
+      return {};
+    }
+
+    final patient = patients[selectedPatientIndex];
+    final meals = patient['mealsToday'] as List? ?? [];
+
+    return meals
+        .map((meal) => (meal['meal_type'] ?? meal['type'] ?? 'other') as String)
+        .toSet();
+  }
+
+  // ========== EXERCISE HELPERS ==========
+
+  // Get list of already added exercise types for today
+  Set<String> _getUsedExerciseTypes() {
+    if (selectedPatientIndex < 0 || selectedPatientIndex >= patients.length) {
+      return {};
+    }
+
+    final patient = patients[selectedPatientIndex];
+    final patientId = patient['patient_id'] ?? patient['id'];
+    final exercises = _patientsExercisesData[patientId] ?? [];
+
+    return exercises
+        .map(
+          (exercise) =>
+              (exercise['exercise_type'] as String?)?.toLowerCase() ?? '',
+        )
+        .toSet();
+  }
+
+  // Get color for exercise type
+  Color _getExerciseTypeColor(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'cardio':
+        return Colors.red;
+      case 'strength':
+        return Colors.blue;
+      case 'flexibility':
+        return Colors.purple;
+      case 'balance':
+        return Colors.teal;
+      case 'walking':
+        return Colors.green;
+      case 'yoga':
+        return Colors.pink;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Get icon for exercise type
+  IconData _getExerciseTypeIcon(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'cardio':
+        return Icons.directions_run;
+      case 'strength':
+        return Icons.fitness_center;
+      case 'flexibility':
+        return Icons.self_improvement;
+      case 'balance':
+        return Icons.accessibility_new;
+      case 'walking':
+        return Icons.directions_walk;
+      case 'yoga':
+        return Icons.spa;
+      default:
+        return Icons.sports;
+    }
+  }
+
+  // ========== SUPPLEMENT HELPERS ==========
+
+  // Get list of already added supplement names
+  Set<String> _getUsedSupplementNames() {
+    if (selectedPatientIndex < 0 || selectedPatientIndex >= patients.length) {
+      return {};
+    }
+
+    final patient = patients[selectedPatientIndex];
+    final patientId = patient['patient_id'] ?? patient['id'];
+    final supplements = _patientsSupplementsData[patientId] ?? [];
+
+    return supplements
+        .map(
+          (supplement) =>
+              (supplement['supplement_name'] as String?)?.toLowerCase() ?? '',
+        )
+        .toSet();
+  }
+
+  // Get color for supplement (based on name patterns or default)
+  Color _getSupplementColor(String name) {
+    final lowerName = name.toLowerCase();
+    if (lowerName.contains('vitamin')) return Colors.orange;
+    if (lowerName.contains('protein')) return Colors.blue;
+    if (lowerName.contains('omega') || lowerName.contains('fish oil'))
+      return Colors.teal;
+    if (lowerName.contains('calcium')) return Colors.purple;
+    if (lowerName.contains('iron')) return Colors.red;
+    if (lowerName.contains('magnesium')) return Colors.green;
+    return Colors.indigo;
+  }
+
+  // Get icon for supplement
+  IconData _getSupplementIcon(String name) {
+    final lowerName = name.toLowerCase();
+    if (lowerName.contains('vitamin')) return Icons.water_drop;
+    if (lowerName.contains('protein')) return Icons.fitness_center;
+    if (lowerName.contains('omega') || lowerName.contains('fish oil')) {
+      return Icons.set_meal;
+    }
+    if (lowerName.contains('calcium') || lowerName.contains('bone')) {
+      return Icons.healing;
+    }
+    return Icons.medication;
+  }
+
+  /// Handle adding a new exercise
+  Future<void> _handleAddExercise() async {
+    // Validation
+    if (selectedExerciseType == null || selectedExerciseType!.isEmpty) {
+      debugPrint('❌ Validation failed: No exercise type selected');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an exercise type'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_exerciseNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No exercise name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter exercise name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isAddingExercise = true);
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      debugPrint('🏃 Preparing to add exercise for patient: $patientId');
+      debugPrint('📝 Exercise Type: $selectedExerciseType');
+      debugPrint('📝 Exercise Name: ${_exerciseNameController.text.trim()}');
+
+      // STEP 1: Check if exercises exist using GET API
+      debugPrint('📡 Step 1: Checking existing exercises using GET API...');
+      final getResponse = await PlanService.getExercises(
+        patientId,
+        date: today,
+      );
+
+      if (getResponse.success) {
+        final existingExercises = getResponse.data ?? [];
+        debugPrint(
+          '✅ GET API successful: Found ${existingExercises.length} existing exercises for $today',
+        );
+
+        // Log existing exercises
+        if (existingExercises.isNotEmpty) {
+          debugPrint('📋 Existing exercises:');
+          for (var ex in existingExercises) {
+            debugPrint('   - ${ex.exerciseName} (${ex.exerciseType})');
+          }
+        } else {
+          debugPrint('ℹ️ No exercises found for this date');
+        }
+      } else {
+        debugPrint('⚠️ GET API returned error: ${getResponse.message}');
+      }
+
+      // STEP 2: Create and add new exercise using POST API
+      debugPrint('📡 Step 2: Adding new exercise using POST API...');
+      final exercise = Exercise(
+        exerciseName: _exerciseNameController.text.trim(),
+        exerciseType: selectedExerciseType?.toLowerCase(),
+        durationMins: _exerciseDurationController.text.trim().isNotEmpty
+            ? int.tryParse(_exerciseDurationController.text.trim())
+            : null,
+        caloriesBurn: _exerciseCaloriesController.text.trim().isNotEmpty
+            ? int.tryParse(_exerciseCaloriesController.text.trim())
+            : null,
+        instructions: _exerciseInstructionsController.text.trim().isNotEmpty
+            ? _exerciseInstructionsController.text.trim()
+            : null,
+        date: today,
+      );
+
+      final response = await PlanService.addExercise(patientId, exercise);
+
+      if (response.success) {
+        debugPrint('✅ Exercise added successfully via POST API');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        // Refresh patient data
+        debugPrint('🔄 Refreshing patient data...');
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to add exercise: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleAddExercise: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingExercise = false);
+      }
+    }
+  }
+
+  /// Handle adding a new supplement
+  Future<void> _handleAddSupplement() async {
+    // Validation
+    if (_supplementNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No supplement name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter supplement name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isAddingSupplement = true);
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      debugPrint('💊 Preparing to add supplement for patient: $patientId');
+      debugPrint(
+        '📝 Supplement Name: ${_supplementNameController.text.trim()}',
+      );
+
+      final supplement = Supplement(
+        supplementName: _supplementNameController.text.trim(),
+        dosage: _supplementDosageController.text.trim().isNotEmpty
+            ? _supplementDosageController.text.trim()
+            : null,
+        frequency: selectedSupplementFrequency ?? 'once daily',
+        instructions: _supplementInstructionsController.text.trim().isNotEmpty
+            ? _supplementInstructionsController.text.trim()
+            : null,
+        startDate: today,
+        endDate: null,
+      );
+
+      final response = await PlanService.addSupplement(patientId, supplement);
+
+      if (response.success) {
+        debugPrint('✅ Supplement added successfully via API');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        // Refresh patient data
+        debugPrint('🔄 Refreshing patient data...');
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to add supplement: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleAddSupplement: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingSupplement = false);
+      }
+    }
+  }
+
+  /// Show edit supplement dialog
+  void _showEditSupplementDialog(Map<String, dynamic> supplement) {
+    // Populate form with supplement data
+    _supplementNameController.text =
+        supplement['supplement_name'] ?? supplement['name'] ?? '';
+    _supplementDosageController.text = supplement['dosage'] ?? '';
+    _supplementInstructionsController.text = supplement['instructions'] ?? '';
+
+    final frequency = supplement['frequency'] ?? 'Once Daily';
+    setState(() => selectedSupplementFrequency = frequency);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            width: 500,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue, Colors.blue.withValues(alpha: 0.8)],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit Supplement',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Update supplement details',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDialogTextField(
+                        'Supplement Name',
+                        'e.g., Vitamin D3',
+                        controller: _supplementNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Dosage',
+                        'e.g., 1000 IU',
+                        controller: _supplementDosageController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSupplementFrequencyDropdown(),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Instructions',
+                        'e.g., Take with food',
+                        controller: _supplementInstructionsController,
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: 15),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _handleUpdateSupplement(supplement);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Update Supplement',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Handle updating an existing supplement
+  Future<void> _handleUpdateSupplement(
+    Map<String, dynamic> oldSupplement,
+  ) async {
+    // Validation
+    if (_supplementNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No supplement name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter supplement name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final supplementId = oldSupplement['id'];
+
+      debugPrint(
+        '📝 Updating supplement ID: $supplementId for patient: $patientId',
+      );
+
+      final updatedSupplement = Supplement(
+        supplementName: _supplementNameController.text.trim(),
+        dosage: _supplementDosageController.text.trim().isNotEmpty
+            ? _supplementDosageController.text.trim()
+            : null,
+        frequency: selectedSupplementFrequency ?? 'once daily',
+        instructions: _supplementInstructionsController.text.trim().isNotEmpty
+            ? _supplementInstructionsController.text.trim()
+            : null,
+        startDate:
+            oldSupplement['start_date'] ??
+            DateFormat('yyyy-MM-dd').format(DateTime.now()),
+        endDate: oldSupplement['end_date'],
+      );
+
+      final response = await PlanService.updateSupplement(
+        patientId,
+        supplementId.toString(),
+        updatedSupplement,
+      );
+
+      if (response.success) {
+        debugPrint('✅ Supplement updated successfully');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Supplement updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to update supplement: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleUpdateSupplement: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Confirm and delete supplement
+  Future<void> _confirmDeleteSupplement(Map<String, dynamic> supplement) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Supplement'),
+          content: Text(
+            'Are you sure you want to delete "${supplement['supplement_name'] ?? supplement['name'] ?? 'this supplement'}"?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _handleDeleteSupplement(supplement);
+    }
+  }
+
+  /// Handle deleting a supplement
+  Future<void> _handleDeleteSupplement(Map<String, dynamic> supplement) async {
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final supplementId = supplement['id'];
+
+      debugPrint(
+        '🗑️ Deleting supplement ID: $supplementId for patient: $patientId',
+      );
+
+      final response = await PlanService.deleteSupplement(
+        patientId,
+        supplementId.toString(),
+      );
+
+      if (response.success) {
+        debugPrint('✅ Supplement deleted successfully');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Supplement deleted successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to delete supplement: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleDeleteSupplement: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Confirm and delete all exercises for the selected patient
+  void _confirmDeleteAllExercises() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Delete All Exercises'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete ALL exercises for today? This action cannot be undone.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _handleDeleteAllExercises();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Handle deleting all exercises
+  Future<void> _handleDeleteAllExercises() async {
+    if (selectedPatientIndex < 0 || selectedPatientIndex >= patients.length) {
+      debugPrint('❌ Invalid patient index');
+      return;
+    }
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      debugPrint('🗑️ Starting delete all exercises for patient: $patientId');
+
+      // Get all exercises for today
+      final getResponse = await PlanService.getExercises(
+        patientId,
+        date: today,
+      );
+
+      if (!getResponse.success ||
+          getResponse.data == null ||
+          getResponse.data!.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No exercises to delete'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+
+      final exercises = getResponse.data!;
+      debugPrint('📋 Found ${exercises.length} exercises to delete');
+
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text('Deleting ${exercises.length} exercises...'),
+              ],
+            ),
+            duration: const Duration(seconds: 30),
+          ),
+        );
+      }
+
+      // Delete each exercise
+      int deletedCount = 0;
+      int failedCount = 0;
+
+      for (var exercise in exercises) {
+        try {
+          final deleteResponse = await PlanService.deleteExercise(
+            patientId,
+            exercise.id.toString(),
+          );
+
+          if (deleteResponse.success) {
+            deletedCount++;
+            debugPrint('✅ Deleted exercise: ${exercise.exerciseName}');
+          } else {
+            failedCount++;
+            debugPrint(
+              '❌ Failed to delete exercise ${exercise.id}: ${deleteResponse.message}',
+            );
+          }
+        } catch (e) {
+          failedCount++;
+          debugPrint('❌ Exception deleting exercise ${exercise.id}: $e');
+        }
+      }
+
+      // Hide loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      debugPrint('✅ Deleted $deletedCount exercises, $failedCount failed');
+
+      if (mounted) {
+        if (failedCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully deleted $deletedCount exercises'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Deleted $deletedCount exercises, $failedCount failed',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+
+      // Refresh patient data
+      debugPrint('🔄 Refreshing patient data...');
+      _fetchPatients();
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleDeleteAllExercises: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Show edit exercise dialog
+  void _showEditExerciseDialog(Map<String, dynamic> exercise) {
+    // Populate form with exercise data
+    _exerciseNameController.text =
+        exercise['exercise_name'] ?? exercise['name'] ?? '';
+    _exerciseDurationController.text =
+        exercise['duration']?.toString().replaceAll(' min', '') ?? '';
+    _exerciseCaloriesController.text = exercise['calories']?.toString() ?? '';
+    _exerciseInstructionsController.text = exercise['instructions'] ?? '';
+
+    final exerciseType = exercise['type'] ?? 'cardio';
+    setState(() => selectedExerciseType = exerciseType);
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            width: 500,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.accentGradient,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Edit Exercise',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Update exercise details',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildExerciseTypeDropdown(
+                        editingExerciseType: exerciseType,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Exercise Name',
+                        'e.g., Morning Run',
+                        controller: _exerciseNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Duration (mins)',
+                        'e.g., 30',
+                        controller: _exerciseDurationController,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Calories Burned',
+                        'e.g., 250',
+                        controller: _exerciseCaloriesController,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Instructions',
+                        'e.g., Run at moderate pace',
+                        controller: _exerciseInstructionsController,
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(fontSize: 15),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _handleUpdateExercise(exercise);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Update Exercise',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Handle updating an existing exercise
+  Future<void> _handleUpdateExercise(Map<String, dynamic> oldExercise) async {
+    // Validation
+    if (selectedExerciseType == null || selectedExerciseType!.isEmpty) {
+      debugPrint('❌ Validation failed: No exercise type selected');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an exercise type'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_exerciseNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No exercise name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter exercise name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final exerciseId = oldExercise['id'];
+
+      debugPrint(
+        '📝 Updating exercise ID: $exerciseId for patient: $patientId',
+      );
+
+      final updatedExercise = Exercise(
+        exerciseName: _exerciseNameController.text.trim(),
+        exerciseType: selectedExerciseType?.toLowerCase(),
+        durationMins: _exerciseDurationController.text.trim().isNotEmpty
+            ? int.tryParse(_exerciseDurationController.text.trim())
+            : null,
+        caloriesBurn: _exerciseCaloriesController.text.trim().isNotEmpty
+            ? int.tryParse(_exerciseCaloriesController.text.trim())
+            : null,
+        instructions: _exerciseInstructionsController.text.trim().isNotEmpty
+            ? _exerciseInstructionsController.text.trim()
+            : null,
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      );
+
+      final response = await PlanService.updateExercise(
+        patientId,
+        exerciseId.toString(),
+        updatedExercise,
+      );
+
+      if (response.success) {
+        debugPrint('✅ Exercise updated successfully');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Exercise updated successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to update exercise: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleUpdateExercise: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  /// Handle updating an existing meal
+  Future<void> _handleUpdateMeal(Map<String, dynamic> oldMeal) async {
+    // Validation
+    if (selectedMealType == null || selectedMealType!.isEmpty) {
+      debugPrint('❌ Validation failed: No meal type selected');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a meal type'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_mealNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No meal name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter meal name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isAddingMeal = true);
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+
+      // Get meal ID from the meals data cache
+      final mealsData = _patientsMealsData[patientId] ?? [];
+      final mealData = mealsData.firstWhere(
+        (m) =>
+            m['meal_name'] == oldMeal['name'] &&
+            m['meal_type'] == oldMeal['type'],
+        orElse: () => {},
+      );
+
+      if (mealData.isEmpty || mealData['id'] == null) {
+        debugPrint('❌ Could not find meal ID');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: Could not find meal to update'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isAddingMeal = false);
+        return;
+      }
+
+      final mealId = mealData['id'].toString();
+
+      debugPrint(
+        '🍽️ Preparing to update meal $mealId for patient: $patientId',
+      );
+      debugPrint('📝 Meal Type: ${_convertMealTypeToApi(selectedMealType!)}');
+      debugPrint('📝 Meal Name: ${_mealNameController.text.trim()}');
+
+      // Create meal object with updated data
+      final meal = Meal(
+        mealType: _convertMealTypeToApi(selectedMealType!),
+        mealName: _mealNameController.text.trim(),
+        description: _mealDescriptionController.text.trim().isNotEmpty
+            ? _mealDescriptionController.text.trim()
+            : null,
+        calories: _mealCaloriesController.text.trim().isNotEmpty
+            ? int.tryParse(_mealCaloriesController.text.trim())
+            : null,
+        protein: _mealProteinController.text.trim().isNotEmpty
+            ? double.tryParse(_mealProteinController.text.trim())
+            : null,
+        carbs: _mealCarbsController.text.trim().isNotEmpty
+            ? double.tryParse(_mealCarbsController.text.trim())
+            : null,
+        fats: _mealFatsController.text.trim().isNotEmpty
+            ? double.tryParse(_mealFatsController.text.trim())
+            : null,
+        time: _mealTimeController.text.trim().isNotEmpty
+            ? _mealTimeController.text.trim()
+            : null,
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      );
+
+      // Call API
+      debugPrint('📡 Calling PlanService.updateMeal...');
+      final response = await PlanService.updateMeal(patientId, mealId, meal);
+
+      if (response.success) {
+        debugPrint('✅ Meal updated successfully via API');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        // Refresh patient data
+        debugPrint('🔄 Refreshing patient data...');
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to update meal: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleUpdateMeal: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingMeal = false);
+      }
+    }
+  }
+
+  Future<void> _handleAddMeal() async {
+    // Validation
+    if (selectedMealType == null || selectedMealType!.isEmpty) {
+      debugPrint('❌ Validation failed: No meal type selected');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a meal type'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (_mealNameController.text.trim().isEmpty) {
+      debugPrint('❌ Validation failed: No meal name entered');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter meal name'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isAddingMeal = true);
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+
+      debugPrint('🍽️ Preparing to add meal for patient: $patientId');
+      debugPrint('📝 Meal Type: ${_convertMealTypeToApi(selectedMealType!)}');
+      debugPrint('📝 Meal Name: ${_mealNameController.text.trim()}');
+
+      // Create meal object
+      final meal = Meal(
+        mealType: _convertMealTypeToApi(selectedMealType!),
+        mealName: _mealNameController.text.trim(),
+        description: _mealDescriptionController.text.trim().isNotEmpty
+            ? _mealDescriptionController.text.trim()
+            : null,
+        calories: _mealCaloriesController.text.trim().isNotEmpty
+            ? int.tryParse(_mealCaloriesController.text.trim())
+            : null,
+        protein: _mealProteinController.text.trim().isNotEmpty
+            ? double.tryParse(_mealProteinController.text.trim())
+            : null,
+        carbs: _mealCarbsController.text.trim().isNotEmpty
+            ? double.tryParse(_mealCarbsController.text.trim())
+            : null,
+        fats: _mealFatsController.text.trim().isNotEmpty
+            ? double.tryParse(_mealFatsController.text.trim())
+            : null,
+        time: _mealTimeController.text.trim().isNotEmpty
+            ? _mealTimeController.text.trim()
+            : null,
+        date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      );
+
+      // Call API
+      debugPrint('📡 Calling PlanService.addMeal...');
+      final response = await PlanService.addMeal(patientId, meal);
+
+      if (response.success) {
+        debugPrint('✅ Meal added successfully via API');
+
+        // Clear form
+        _mealNameController.clear();
+        _mealCaloriesController.clear();
+        _mealTimeController.clear();
+        _mealDescriptionController.clear();
+        _mealProteinController.clear();
+        _mealCarbsController.clear();
+        _mealFatsController.clear();
+        setState(() => selectedMealType = null);
+
+        // Close dialog
+        if (mounted) Navigator.pop(context);
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+
+        // Refresh patient data
+        debugPrint('🔄 Refreshing patient data...');
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to add meal: ${response.message}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleAddMeal: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingMeal = false);
+      }
+    }
+  }
+
+  /// Confirm and delete all meals for the selected patient
+  void _confirmDeleteAllMeals() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Delete All Meals'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete ALL meals for today? This action cannot be undone.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _handleDeleteAllMeals();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete All'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Handle deleting all meals
+  Future<void> _handleDeleteAllMeals() async {
+    if (selectedPatientIndex < 0 || selectedPatientIndex >= patients.length) {
+      debugPrint('❌ Invalid patient index');
+      return;
+    }
+
+    try {
+      final patient = patients[selectedPatientIndex];
+      final patientId = patient['patient_id'] ?? patient['id'];
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      debugPrint('🗑️ Starting delete all meals for patient: $patientId');
+
+      // Show loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Deleting all meals...'),
+              ],
+            ),
+            duration: Duration(seconds: 30),
+          ),
+        );
+      }
+
+      // Call API to delete all meals
+      final response = await PlanService.deleteAllMeals(patientId, date: today);
+
+      // Hide loading indicator
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      if (response.success) {
+        final deletedCount = response.data ?? 0;
+        debugPrint('✅ Successfully deleted $deletedCount meals');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Successfully deleted $deletedCount meals'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+
+        // Refresh patient data
+        debugPrint('🔄 Refreshing patient data...');
+        _fetchPatients();
+      } else {
+        debugPrint('❌ Failed to delete meals: ${response.message}');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ EXCEPTION in _handleDeleteAllMeals: $e');
+      debugPrint('Stack trace: $stackTrace');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  void _showEditMealDialog(Map<String, dynamic> meal) {
+    // Populate form with meal data
+    _mealNameController.text = meal['name'] ?? '';
+    _mealCaloriesController.text = meal['calories']?.toString() ?? '';
+    _mealTimeController.text = meal['time'] ?? '';
+    _mealDescriptionController.text = meal['description'] ?? '';
+    _mealProteinController.text = meal['protein']?.toString() ?? '';
+    _mealCarbsController.text = meal['carbs']?.toString() ?? '';
+    _mealFatsController.text = meal['fats']?.toString() ?? '';
+
+    final mealType = meal['type'] ?? 'breakfast';
+    setState(() => selectedMealType = _convertMealTypeToDisplay(mealType));
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            width: 500,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primary.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Text(
+                        'Edit Meal',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Form Content
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMealTypeDropdown(editingMealType: mealType),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Meal Name',
+                          'e.g., Oats with fruits',
+                          controller: _mealNameController,
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Calories',
+                                'e.g., 450',
+                                controller: _mealCaloriesController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Time',
+                                'e.g., 08:00',
+                                controller: _mealTimeController,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Protein (g)',
+                                'e.g., 15',
+                                controller: _mealProteinController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Carbs (g)',
+                                'e.g., 60',
+                                controller: _mealCarbsController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Fats (g)',
+                                'e.g., 10',
+                                controller: _mealFatsController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Description (Optional)',
+                          'Additional notes...',
+                          controller: _mealDescriptionController,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Action Buttons
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9E9E9E),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _handleUpdateMeal(meal);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isAddingMeal
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : const Text(
+                                'Update Meal',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showAddMealDialog() {
+    // Reset form
+    _mealNameController.clear();
+    _mealCaloriesController.clear();
+    _mealTimeController.clear();
+    _mealDescriptionController.clear();
+    _mealProteinController.clear();
+    _mealCarbsController.clear();
+    _mealFatsController.clear();
+    setState(() => selectedMealType = null);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -493,7 +2709,7 @@ MedDiet Team
                       end: Alignment.bottomRight,
                       colors: [
                         AppColors.success,
-                        AppColors.success.withOpacity(0.8),
+                        AppColors.success.withValues(alpha: 0.8),
                       ],
                     ),
                     borderRadius: const BorderRadius.only(
@@ -506,7 +2722,7 @@ MedDiet Team
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -554,14 +2770,69 @@ MedDiet Team
                     children: [
                       _buildMealTypeDropdown(),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Calories', 'e.g., 450 kcal'),
+                      _buildDialogTextField(
+                        'Meal Name',
+                        'e.g., Oats with fruits',
+                        controller: _mealNameController,
+                      ),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Time', 'e.g., 08:00 AM'),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDialogTextField(
+                              'Calories',
+                              'e.g., 450',
+                              controller: _mealCaloriesController,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildDialogTextField(
+                              'Time',
+                              'e.g., 08:00',
+                              controller: _mealTimeController,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDialogTextField(
+                              'Protein (g)',
+                              'e.g., 15',
+                              controller: _mealProteinController,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildDialogTextField(
+                              'Carbs (g)',
+                              'e.g., 50',
+                              controller: _mealCarbsController,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildDialogTextField(
+                              'Fats (g)',
+                              'e.g., 10',
+                              controller: _mealFatsController,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 16),
                       _buildDialogTextField(
                         'Description',
-                        'What did you eat?',
+                        'Additional details...',
                         maxLines: 3,
+                        controller: _mealDescriptionController,
                       ),
                     ],
                   ),
@@ -598,10 +2869,7 @@ MedDiet Team
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {
-                          // Add meal logic here
-                          Navigator.pop(context);
-                        },
+                        onPressed: _isAddingMeal ? null : _handleAddMeal,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
@@ -618,7 +2886,7 @@ MedDiet Team
                             gradient: LinearGradient(
                               colors: [
                                 AppColors.success,
-                                AppColors.success.withOpacity(0.8),
+                                AppColors.success.withValues(alpha: 0.8),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -628,25 +2896,36 @@ MedDiet Team
                               horizontal: 24,
                               vertical: 12,
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Add Meal',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                            child: _isAddingMeal
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Add Meal',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),
@@ -662,6 +2941,14 @@ MedDiet Team
   }
 
   void _showAddExerciseDialog() {
+    // Reset form
+    _exerciseNameController.clear();
+    _exerciseDurationController.clear();
+    _exerciseCaloriesController.clear();
+    _exerciseTimeController.clear();
+    _exerciseInstructionsController.clear();
+    setState(() => selectedExerciseType = null);
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -693,7 +2980,7 @@ MedDiet Team
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -741,18 +3028,36 @@ MedDiet Team
                     children: [
                       _buildExerciseTypeDropdown(),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Duration', 'e.g., 30 min'),
+                      _buildDialogTextField(
+                        'Exercise Name',
+                        'e.g., Morning Run',
+                        controller: _exerciseNameController,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildDialogTextField(
+                        'Duration (mins)',
+                        'e.g., 30',
+                        controller: _exerciseDurationController,
+                        keyboardType: TextInputType.number,
+                      ),
                       const SizedBox(height: 16),
                       _buildDialogTextField(
                         'Calories Burned',
-                        'e.g., 250 kcal',
+                        'e.g., 250',
+                        controller: _exerciseCaloriesController,
+                        keyboardType: TextInputType.number,
                       ),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Time', 'e.g., 06:00 AM'),
+                      _buildDialogTextField(
+                        'Time',
+                        'e.g., 06:00 AM',
+                        controller: _exerciseTimeController,
+                      ),
                       const SizedBox(height: 16),
                       _buildDialogTextField(
-                        'Notes',
+                        'Instructions (Optional)',
                         'Any additional notes?',
+                        controller: _exerciseInstructionsController,
                         maxLines: 3,
                       ),
                     ],
@@ -791,8 +3096,8 @@ MedDiet Team
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () {
-                          // Add exercise logic here
                           Navigator.pop(context);
+                          _handleAddExercise();
                         },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -872,7 +3177,7 @@ MedDiet Team
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Colors.blue, Colors.blue.withOpacity(0.8)],
+                      colors: [Colors.blue, Colors.blue.withValues(alpha: 0.8)],
                     ),
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(24),
@@ -884,7 +3189,7 @@ MedDiet Team
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -930,20 +3235,20 @@ MedDiet Team
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildDialogTextField(
-                        'Supplement Name',
-                        'e.g., Vitamin D3',
-                      ),
+                      _buildSupplementNameField(),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Dosage', 'e.g., 1000 IU'),
+                      _buildDialogTextField(
+                        'Dosage',
+                        'e.g., 1000 IU',
+                        controller: _supplementDosageController,
+                      ),
                       const SizedBox(height: 16),
                       _buildSupplementFrequencyDropdown(),
                       const SizedBox(height: 16),
-                      _buildDialogTextField('Time', 'e.g., 08:00 AM'),
-                      const SizedBox(height: 16),
                       _buildDialogTextField(
-                        'Notes',
-                        'Any additional notes?',
+                        'Instructions',
+                        'e.g., Take with food',
+                        controller: _supplementInstructionsController,
                         maxLines: 3,
                       ),
                     ],
@@ -982,8 +3287,8 @@ MedDiet Team
                       const SizedBox(width: 12),
                       ElevatedButton(
                         onPressed: () {
-                          // Add supplement logic here
                           Navigator.pop(context);
+                          _handleAddSupplement();
                         },
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -1001,7 +3306,7 @@ MedDiet Team
                             gradient: LinearGradient(
                               colors: [
                                 Colors.blue,
-                                Colors.blue.withOpacity(0.8),
+                                Colors.blue.withValues(alpha: 0.8),
                               ],
                             ),
                             borderRadius: BorderRadius.circular(12),
@@ -1077,7 +3382,7 @@ MedDiet Team
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -1328,7 +3633,7 @@ MedDiet Team
     );
   }
 
-  Widget _buildMealTypeDropdown() {
+  Widget _buildMealTypeDropdown({String? editingMealType}) {
     final mealTypes = [
       'Breakfast',
       'Morning Snack',
@@ -1339,11 +3644,14 @@ MedDiet Team
       'Other',
     ];
 
+    // Get already used meal types
+    final usedMealTypes = _getUsedMealTypes();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Meal Name',
+          'Meal Type',
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -1387,6 +3695,10 @@ MedDiet Team
             icon: Icon(Icons.arrow_drop_down, color: AppColors.success),
             dropdownColor: Colors.white,
             items: mealTypes.map((String type) {
+              final apiType = _convertMealTypeToApi(type);
+              final isUsed =
+                  usedMealTypes.contains(apiType) && apiType != editingMealType;
+
               return DropdownMenuItem<String>(
                 value: type,
                 child: Row(
@@ -1394,16 +3706,37 @@ MedDiet Team
                     Icon(
                       _getMealIcon(type),
                       size: 20,
-                      color: AppColors.success,
+                      color: isUsed ? Colors.grey : AppColors.success,
                     ),
                     const SizedBox(width: 12),
                     Text(
                       type,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF2D3142),
+                        color: isUsed ? Colors.grey : const Color(0xFF2D3142),
                       ),
                     ),
+                    if (isUsed) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Added',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -1419,18 +3752,29 @@ MedDiet Team
     );
   }
 
-  Widget _buildExerciseTypeDropdown() {
+  Widget _buildExerciseTypeDropdown({String? editingExerciseType}) {
     final exerciseTypes = [
-      'Running',
-      'Walking',
-      'Cycling',
-      'Swimming',
-      'Yoga',
-      'Weight Training',
-      'Cardio',
-      'Sports',
-      'Other',
+      'cardio',
+      'strength',
+      'flexibility',
+      'balance',
+      'walking',
+      'yoga',
+      'other',
     ];
+
+    final exerciseTypeLabels = {
+      'cardio': 'Cardio',
+      'strength': 'Strength Training',
+      'flexibility': 'Flexibility',
+      'balance': 'Balance',
+      'walking': 'Walking',
+      'yoga': 'Yoga',
+      'other': 'Other',
+    };
+
+    // Get already used exercise types
+    final usedExerciseTypes = _getUsedExerciseTypes();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1451,6 +3795,7 @@ MedDiet Team
             border: Border.all(color: const Color(0xFFE5E5E5)),
           ),
           child: DropdownButtonFormField<String>(
+            value: selectedExerciseType,
             decoration: InputDecoration(
               hintText: 'Select exercise type',
               hintStyle: const TextStyle(
@@ -1479,28 +3824,57 @@ MedDiet Team
             icon: Icon(Icons.arrow_drop_down, color: AppColors.accent),
             dropdownColor: Colors.white,
             items: exerciseTypes.map((String type) {
+              final isUsed =
+                  usedExerciseTypes.contains(type.toLowerCase()) &&
+                  type.toLowerCase() != editingExerciseType?.toLowerCase();
+
               return DropdownMenuItem<String>(
                 value: type,
                 child: Row(
                   children: [
                     Icon(
-                      Icons.fitness_center,
+                      _getExerciseTypeIcon(type),
                       size: 20,
-                      color: AppColors.accent,
+                      color: isUsed ? Colors.grey : AppColors.accent,
                     ),
                     const SizedBox(width: 12),
                     Text(
-                      type,
-                      style: const TextStyle(
+                      exerciseTypeLabels[type] ?? type,
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF2D3142),
+                        color: isUsed ? Colors.grey : const Color(0xFF2D3142),
                       ),
                     ),
+                    if (isUsed) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Added',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
             }).toList(),
-            onChanged: (String? newValue) {},
+            onChanged: (String? newValue) {
+              setState(() {
+                selectedExerciseType = newValue;
+              });
+            },
           ),
         ),
       ],
@@ -1536,6 +3910,7 @@ MedDiet Team
             border: Border.all(color: const Color(0xFFE5E5E5)),
           ),
           child: DropdownButtonFormField<String>(
+            value: selectedSupplementFrequency,
             decoration: InputDecoration(
               hintText: 'Select frequency',
               hintStyle: const TextStyle(
@@ -1581,7 +3956,11 @@ MedDiet Team
                 ),
               );
             }).toList(),
-            onChanged: (String? newValue) {},
+            onChanged: (String? newValue) {
+              setState(() {
+                selectedSupplementFrequency = newValue;
+              });
+            },
           ),
         ),
       ],
@@ -1603,6 +3982,53 @@ MedDiet Team
       default:
         return Icons.restaurant;
     }
+  }
+
+  Widget _buildSupplementNameField() {
+    final usedSupplementNames = _getUsedSupplementNames();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Supplement Name',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildDialogTextField(
+          '',
+          'e.g., Vitamin D3',
+          controller: _supplementNameController,
+        ),
+        if (usedSupplementNames.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Already added: ${usedSupplementNames.map((s) => s[0].toUpperCase() + s.substring(1)).join(", ")}',
+                    style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   Widget _buildGenderDropdown() {
@@ -1760,7 +4186,13 @@ MedDiet Team
     );
   }
 
-  Widget _buildDialogTextField(String label, String hint, {int maxLines = 1}) {
+  Widget _buildDialogTextField(
+    String label,
+    String hint, {
+    int maxLines = 1,
+    TextEditingController? controller,
+    TextInputType? keyboardType,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1774,7 +4206,9 @@ MedDiet Team
         ),
         const SizedBox(height: 8),
         TextField(
+          controller: controller,
           maxLines: maxLines,
+          keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
@@ -1802,10 +4236,11 @@ MedDiet Team
     );
   }
 
-  // Get patients - use API data if available, otherwise fallback to sample
-  List<Map<String, dynamic>> get patients => _apiPatients.isNotEmpty ? _apiPatients : _samplePatients;
+  // Get patients - use API data only (no fake demo data)
+  List<Map<String, dynamic>> get patients => _apiPatients;
 
-  // Sample patient data with health metrics (fallback)
+  // Sample patient data with health metrics (REMOVED - use only real API data)
+  // ignore: unused_field
   final List<Map<String, dynamic>> _samplePatients = [
     {
       'name': 'Sarah Johnson',
@@ -2079,32 +4514,39 @@ MedDiet Team
                       ),
                     )
                   : _errorMessage != null && _apiPatients.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.error_outline, size: 48, color: Colors.red),
-                              const SizedBox(height: 16),
-                              Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: _fetchPatients,
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: Colors.red,
                           ),
-                        )
-                      : Row(
-                          children: [
-                            // Left Side - Patient List (30%)
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width * 0.27,
-                              child: _buildPatientList(),
-                            ),
-                            // Right Side - Patient Details (70%)
-                            Expanded(child: _buildPatientDetails()),
-                          ],
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _fetchPatients,
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Row(
+                      children: [
+                        // Left Side - Patient List (30%)
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.27,
+                          child: _buildPatientList(),
                         ),
+                        // Right Side - Patient Details (70%)
+                        Expanded(child: _buildPatientDetails()),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -2122,7 +4564,7 @@ MedDiet Team
         children: [
           // Search Bar
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
             child: TextField(
               onChanged: (value) {
                 setState(() {
@@ -2162,7 +4604,7 @@ MedDiet Team
           // Patient List
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               itemCount: filteredPatients.length,
               itemBuilder: (context, index) {
                 final patient = filteredPatients[index];
@@ -2192,7 +4634,9 @@ MedDiet Team
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+          color: isSelected
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.primary : const Color(0xFFE5E5E5),
@@ -2201,7 +4645,7 @@ MedDiet Team
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: AppColors.primary.withOpacity(0.12),
+                    color: AppColors.primary.withValues(alpha: 0.12),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -2232,14 +4676,14 @@ MedDiet Team
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.3),
+                              color: AppColors.primary.withValues(alpha: 0.3),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
                           ]
                         : [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
+                              color: Colors.black.withValues(alpha: 0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 1),
                             ),
@@ -2269,7 +4713,7 @@ MedDiet Team
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppColors.accent.withOpacity(0.8),
+                          AppColors.accent.withValues(alpha: 0.8),
                           AppColors.accent,
                         ],
                       ),
@@ -2335,12 +4779,64 @@ MedDiet Team
                       ),
                     ],
                   ),
+                  const SizedBox(height: 6),
+                  // Progress bar
+                  _buildProgressBar(patient),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// Build progress bar for patient card
+  Widget _buildProgressBar(Map<String, dynamic> patient) {
+    final patientId = patient['patient_id'] ?? patient['id'] ?? '';
+    final progress = _calculatePatientProgress(patientId);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Progress',
+              style: TextStyle(
+                fontSize: 9,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '$progress%',
+              style: TextStyle(
+                fontSize: 9,
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress / 100,
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              progress >= 75
+                  ? Colors.green
+                  : progress >= 50
+                  ? Colors.orange
+                  : AppColors.primary,
+            ),
+            minHeight: 4,
+          ),
+        ),
+      ],
     );
   }
 
@@ -2374,7 +4870,7 @@ MedDiet Team
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(30),
+      padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2383,34 +4879,37 @@ MedDiet Team
           const SizedBox(height: 30),
 
           // Health Metrics Grid - 4 Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildMetricCard(
-                  'BMI',
-                  patient['bmi'].toString(),
-                  'kg/m²',
-                  Icons.monitor_weight,
-                  AppColors.primary,
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    'BMI',
+                    patient['bmi'].toString(),
+                    'kg/m²',
+                    Icons.monitor_weight,
+                    AppColors.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildMetricCard(
-                  'Weight',
-                  '${patient['weight']} kg',
-                  'Target: ${patient['targetWeight']} kg',
-                  Icons.scale,
-                  AppColors.accent,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMetricCard(
+                    'Weight',
+                    '${patient['weight']} kg',
+                    'Target: ${patient['targetWeight']} kg',
+                    Icons.scale,
+                    AppColors.accent,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: _buildStepsCard(patient)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildCaloriesCard(patient)),
-            ],
+                const SizedBox(width: 12),
+                Expanded(child: _buildStepsCard(patient)),
+                const SizedBox(width: 12),
+                Expanded(child: _buildCaloriesCard(patient)),
+              ],
+            ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Meals Today
           _buildMealsSection(patient),
@@ -2445,9 +4944,9 @@ MedDiet Team
 
   Widget _buildPatientHeader(Map<String, dynamic> patient) {
     final initials = _getInitials(patient['name'] ?? '');
-    
+
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -2457,24 +4956,25 @@ MedDiet Team
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.3),
+            color: AppColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Avatar with initials
           Container(
-            width: 90,
-            height: 90,
+            width: 80,
+            height: 80,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 15,
                   offset: const Offset(0, 5),
                 ),
@@ -2485,28 +4985,32 @@ MedDiet Team
                 initials,
                 style: TextStyle(
                   color: AppColors.primary,
-                  fontSize: 36,
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  patient['name'],
+                  (patient['name'] as String).trim().toUpperCase(),
                   style: const TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                    letterSpacing: 0.5,
+                    letterSpacing: 1.5,
+                    height: 1.0,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
                     _buildHeaderInfo(
@@ -2519,7 +5023,7 @@ MedDiet Team
                     _buildHeaderInfo(Icons.badge_outlined, patient['id']),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Container(
@@ -2528,10 +5032,10 @@ MedDiet Team
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
+                        color: Colors.white.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
@@ -2569,7 +5073,7 @@ MedDiet Team
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -2606,6 +5110,23 @@ MedDiet Team
             children: [
               Row(
                 children: [
+                  InkWell(
+                    onTap: _fetchPatients,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.refresh,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   _buildHeaderIconButton(Icons.phone, Colors.white),
                   const SizedBox(width: 8),
                   _buildHeaderIconButton(Icons.message, Colors.white),
@@ -2616,7 +5137,7 @@ MedDiet Team
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -2635,7 +5156,7 @@ MedDiet Team
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -2706,7 +5227,7 @@ MedDiet Team
   Widget _buildHeaderIconButton(IconData icon, Color color) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(10),
       ),
       child: IconButton(
@@ -2726,18 +5247,18 @@ MedDiet Team
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, color.withOpacity(0.02)],
+          colors: [Colors.white, color.withValues(alpha: 0.02)],
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -2745,58 +5266,64 @@ MedDiet Team
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [color.withOpacity(0.15), color.withOpacity(0.08)],
+                    colors: [
+                      color.withValues(alpha: 0.15),
+                      color.withValues(alpha: 0.08),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
                   ],
                 ),
-                child: Icon(icon, color: color, size: 26),
+                child: Icon(icon, color: color, size: 22),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
             title,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               color: Color(0xFF9E9E9E),
               fontWeight: FontWeight.w600,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: color,
               letterSpacing: -0.5,
+              height: 1.0,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             subtitle,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 11,
               color: Color(0xFF9E9E9E),
               fontWeight: FontWeight.w500,
+              height: 1.2,
             ),
           ),
         ],
@@ -2805,21 +5332,26 @@ MedDiet Team
   }
 
   Widget _buildStepsCard(Map<String, dynamic> patient) {
-    double progress = (patient['steps'] as num).toDouble() / (patient['targetSteps'] as num).toDouble();
+    double progress =
+        (patient['steps'] as num).toDouble() /
+        (patient['targetSteps'] as num).toDouble();
 
     return Container(
-      padding: const EdgeInsets.all(26),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, AppColors.info.withOpacity(0.03)],
+          colors: [Colors.white, AppColors.info.withValues(alpha: 0.03)],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.info.withOpacity(0.2), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.info.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.info.withOpacity(0.1),
+            color: AppColors.info.withValues(alpha: 0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -2827,6 +5359,7 @@ MedDiet Team
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2834,22 +5367,22 @@ MedDiet Team
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      color: AppColors.info.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       Icons.directions_walk,
                       color: AppColors.info,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   const Text(
                     'Steps Today',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF2D3142),
                     ),
@@ -2859,27 +5392,46 @@ MedDiet Team
               Text(
                 '${(progress * 100).toInt()}%',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: AppColors.info,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             '${patient['steps']}',
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D3142),
+              height: 1.0,
             ),
           ),
-          Text(
-            'Goal: ${patient['targetSteps']} steps',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Text(
+                'Goal: ${patient['targetSteps']} steps',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF9E9E9E),
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(width: 4),
+              InkWell(
+                onTap: () => _showEditStepGoalDialog(patient),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(2),
+                  child: Icon(Icons.edit, size: 12, color: Colors.grey[600]),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
@@ -2895,21 +5447,26 @@ MedDiet Team
   }
 
   Widget _buildCaloriesCard(Map<String, dynamic> patient) {
-    double progress = (patient['caloriesIntake'] as num).toDouble() / (patient['targetCalories'] as num).toDouble();
+    double progress =
+        (patient['caloriesIntake'] as num).toDouble() /
+        (patient['targetCalories'] as num).toDouble();
 
     return Container(
-      padding: const EdgeInsets.all(26),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, Colors.orange.withOpacity(0.03)],
+          colors: [Colors.white, Colors.orange.withValues(alpha: 0.03)],
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.orange.withOpacity(0.2), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.orange.withOpacity(0.1),
+            color: Colors.orange.withValues(alpha: 0.1),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -2917,6 +5474,7 @@ MedDiet Team
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2924,22 +5482,22 @@ MedDiet Team
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
                       Icons.local_fire_department,
                       color: Colors.orange,
-                      size: 24,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   const Text(
                     'Calories',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF2D3142),
                     ),
@@ -2947,18 +5505,15 @@ MedDiet Team
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(6),
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
                 ),
                 child: Text(
                   '${patient['caloriesBurned']} burned',
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                     color: AppColors.success,
                   ),
@@ -2966,20 +5521,26 @@ MedDiet Team
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Text(
             '${patient['caloriesIntake']}',
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
               color: Color(0xFF2D3142),
+              height: 1.0,
             ),
           ),
+          const SizedBox(height: 2),
           Text(
             'Goal: ${patient['targetCalories']} kcal',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFF9E9E9E),
+              height: 1.2,
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
@@ -2995,37 +5556,105 @@ MedDiet Team
   }
 
   Widget _buildExerciseSection(Map<String, dynamic> patient) {
-    // Sample exercise data
-    final List<Map<String, dynamic>> exercises = [
-      {
-        'name': 'Morning Run',
-        'duration': '30 min',
-        'calories': 250,
-        'time': '06:00 AM',
-        'type': 'Cardio',
-      },
-      {
-        'name': 'Weight Training',
-        'duration': '45 min',
-        'calories': 320,
-        'time': '07:00 AM',
-        'type': 'Strength',
-      },
-      {
-        'name': 'Yoga Session',
-        'duration': '20 min',
-        'calories': 80,
-        'time': '06:00 PM',
-        'type': 'Flexibility',
-      },
-      {
-        'name': 'Evening Walk',
-        'duration': '25 min',
-        'calories': 120,
-        'time': '07:30 PM',
-        'type': 'Cardio',
-      },
-    ];
+    // Get exercises from patient data
+    final exercises = patient['exercisesToday'] as List? ?? [];
+
+    // Handle empty exercises list
+    if (exercises.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, AppColors.accent.withValues(alpha: 0.02)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppColors.accent.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.fitness_center,
+                        color: AppColors.accent,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Exercise Today',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: _showAddExerciseDialog,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.accentGradient,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add Exercise',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No exercise data available yet',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -3033,16 +5662,16 @@ MedDiet Team
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, AppColors.accent.withOpacity(0.02)],
+          colors: [Colors.white, AppColors.accent.withValues(alpha: 0.02)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.accent.withOpacity(0.2),
+          color: AppColors.accent.withValues(alpha: 0.2),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.accent.withOpacity(0.08),
+            color: AppColors.accent.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -3063,14 +5692,14 @@ MedDiet Team
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          AppColors.accent.withOpacity(0.15),
-                          AppColors.accent.withOpacity(0.08),
+                          AppColors.accent.withValues(alpha: 0.15),
+                          AppColors.accent.withValues(alpha: 0.08),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withOpacity(0.2),
+                          color: AppColors.accent.withValues(alpha: 0.2),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -3101,7 +5730,7 @@ MedDiet Team
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.accent.withOpacity(0.1),
+                      color: AppColors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -3120,7 +5749,7 @@ MedDiet Team
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -3143,6 +5772,42 @@ MedDiet Team
                     ),
                   ),
                   const SizedBox(width: 12),
+                  if (exercises.isNotEmpty)
+                    InkWell(
+                      onTap: () => _confirmDeleteAllExercises(),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade200),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.delete_sweep,
+                              color: Colors.red,
+                              size: 16,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Delete All',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  if (exercises.isNotEmpty) const SizedBox(width: 8),
                   InkWell(
                     onTap: _showAddExerciseDialog,
                     borderRadius: BorderRadius.circular(10),
@@ -3156,7 +5821,7 @@ MedDiet Team
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withOpacity(0.3),
+                            color: AppColors.accent.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -3198,7 +5863,7 @@ MedDiet Team
                 border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -3214,7 +5879,7 @@ MedDiet Team
                       borderRadius: BorderRadius.circular(3),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withOpacity(0.3),
+                          color: AppColors.accent.withValues(alpha: 0.3),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -3242,7 +5907,9 @@ MedDiet Team
                         Row(
                           children: [
                             Text(
-                              exercise['name'] as String,
+                              exercise['exercise_name'] ??
+                                  exercise['name'] ??
+                                  'Exercise',
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -3257,16 +5924,75 @@ MedDiet Team
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.accent.withOpacity(0.1),
+                                color: AppColors.accent.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                exercise['type'] as String,
+                                exercise['exercise_type'] ??
+                                    exercise['type'] ??
+                                    'cardio',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.accent,
                                 ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Completion Status Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (exercise['is_completed'] == true ||
+                                        exercise['is_completed'] == 1)
+                                    ? AppColors.success.withValues(alpha: 0.1)
+                                    : Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color:
+                                      (exercise['is_completed'] == true ||
+                                          exercise['is_completed'] == 1)
+                                      ? AppColors.success.withValues(alpha: 0.3)
+                                      : Colors.orange.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    (exercise['is_completed'] == true ||
+                                            exercise['is_completed'] == 1)
+                                        ? Icons.check_circle
+                                        : Icons.pending,
+                                    size: 12,
+                                    color:
+                                        (exercise['is_completed'] == true ||
+                                            exercise['is_completed'] == 1)
+                                        ? AppColors.success
+                                        : Colors.orange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    (exercise['is_completed'] == true ||
+                                            exercise['is_completed'] == 1)
+                                        ? 'Completed'
+                                        : 'Pending',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          (exercise['is_completed'] == true ||
+                                              exercise['is_completed'] == 1)
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -3281,7 +6007,7 @@ MedDiet Team
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              exercise['time'] as String,
+                              exercise['time'] ?? 'N/A',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF9E9E9E),
@@ -3296,7 +6022,7 @@ MedDiet Team
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              exercise['duration'] as String,
+                              exercise['duration'] ?? 'N/A',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF9E9E9E),
@@ -3318,13 +6044,13 @@ MedDiet Team
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.orange.withOpacity(0.15),
-                          Colors.orange.withOpacity(0.08),
+                          Colors.orange.withValues(alpha: 0.15),
+                          Colors.orange.withValues(alpha: 0.08),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.orange.withOpacity(0.3),
+                        color: Colors.orange.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -3357,10 +6083,20 @@ MedDiet Team
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _showEditExerciseDialog(exercise),
+                    icon: const Icon(Icons.edit),
+                    color: AppColors.primary,
+                    iconSize: 20,
+                    tooltip: 'Edit Exercise',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -3377,11 +6113,11 @@ MedDiet Team
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white, AppColors.success.withOpacity(0.02)],
+            colors: [Colors.white, AppColors.success.withValues(alpha: 0.02)],
           ),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.success.withOpacity(0.2),
+            color: AppColors.success.withValues(alpha: 0.2),
             width: 1.5,
           ),
         ),
@@ -3389,26 +6125,74 @@ MedDiet Team
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.restaurant,
-                    color: AppColors.success,
-                    size: 24,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.restaurant,
+                        color: AppColors.success,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      "Today's Meals",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                const Text(
-                  "Today's Meals",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
+                InkWell(
+                  onTap: _showAddMealDialog,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.success,
+                          AppColors.success.withValues(alpha: 0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.success.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add Meal',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -3417,10 +6201,7 @@ MedDiet Team
             Center(
               child: Text(
                 'No meal data available yet',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
               ),
             ),
           ],
@@ -3434,16 +6215,16 @@ MedDiet Team
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, AppColors.success.withOpacity(0.02)],
+          colors: [Colors.white, AppColors.success.withValues(alpha: 0.02)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.success.withOpacity(0.2),
+          color: AppColors.success.withValues(alpha: 0.2),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.success.withOpacity(0.08),
+            color: AppColors.success.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -3460,7 +6241,7 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.1),
+                      color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -3490,6 +6271,55 @@ MedDiet Team
                     ),
                   ),
                   const SizedBox(width: 12),
+                  if (meals.isNotEmpty)
+                    InkWell(
+                      onTap: () => _confirmDeleteAllMeals(),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.red,
+                              Colors.red.withValues(alpha: 0.8),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.red.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.delete_sweep,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            SizedBox(width: 4),
+                            Text(
+                              'Delete All',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 8),
                   InkWell(
                     onTap: _showAddMealDialog,
                     borderRadius: BorderRadius.circular(10),
@@ -3504,13 +6334,13 @@ MedDiet Team
                           end: Alignment.bottomRight,
                           colors: [
                             AppColors.success,
-                            AppColors.success.withOpacity(0.8),
+                            AppColors.success.withValues(alpha: 0.8),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.success.withOpacity(0.3),
+                            color: AppColors.success.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -3539,6 +6369,11 @@ MedDiet Team
           ),
           const SizedBox(height: 20),
           ...meals.map((meal) {
+            final mealType = meal['type'] ?? 'breakfast';
+            final mealTypeColor = _getMealTypeColor(mealType);
+            final mealTypeIcon = _getMealTypeIcon(mealType);
+            final mealTypeDisplay = _convertMealTypeToDisplay(mealType);
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
@@ -3552,7 +6387,7 @@ MedDiet Team
                 border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -3562,13 +6397,13 @@ MedDiet Team
                 children: [
                   Container(
                     width: 5,
-                    height: 50,
+                    height: 60,
                     decoration: BoxDecoration(
-                      gradient: AppColors.accentGradient,
+                      color: mealTypeColor,
                       borderRadius: BorderRadius.circular(3),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withOpacity(0.3),
+                          color: mealTypeColor.withValues(alpha: 0.3),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -3579,14 +6414,14 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      gradient: AppColors.accentGradient,
+                      color: mealTypeColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: mealTypeColor.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.restaurant,
-                      color: Colors.white,
-                      size: 20,
-                    ),
+                    child: Icon(mealTypeIcon, color: mealTypeColor, size: 20),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -3594,7 +6429,7 @@ MedDiet Team
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          meal['name'],
+                          meal['meal_name'] ?? meal['name'] ?? 'Meal',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -3602,20 +6437,100 @@ MedDiet Team
                             letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: mealTypeColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: mealTypeColor.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                mealTypeDisplay,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: mealTypeColor,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Completion Status Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (meal['is_completed'] == true ||
+                                        meal['is_completed'] == 1)
+                                    ? AppColors.success.withValues(alpha: 0.1)
+                                    : Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color:
+                                      (meal['is_completed'] == true ||
+                                          meal['is_completed'] == 1)
+                                      ? AppColors.success.withValues(alpha: 0.3)
+                                      : Colors.orange.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    (meal['is_completed'] == true ||
+                                            meal['is_completed'] == 1)
+                                        ? Icons.check_circle
+                                        : Icons.pending,
+                                    size: 12,
+                                    color:
+                                        (meal['is_completed'] == true ||
+                                            meal['is_completed'] == 1)
+                                        ? AppColors.success
+                                        : Colors.orange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    (meal['is_completed'] == true ||
+                                            meal['is_completed'] == 1)
+                                        ? 'Completed'
+                                        : 'Pending',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          (meal['is_completed'] == true ||
+                                              meal['is_completed'] == 1)
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
                               Icons.access_time,
                               size: 14,
-                              color: Color(0xFF9E9E9E),
+                              color: Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              meal['time'],
-                              style: const TextStyle(
+                              meal['time'] ?? 'N/A',
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF9E9E9E),
+                                color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -3634,13 +6549,13 @@ MedDiet Team
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          Colors.orange.withOpacity(0.15),
-                          Colors.orange.withOpacity(0.08),
+                          Colors.orange.withValues(alpha: 0.15),
+                          Colors.orange.withValues(alpha: 0.08),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: Colors.orange.withOpacity(0.3),
+                        color: Colors.orange.withValues(alpha: 0.3),
                         width: 1,
                       ),
                     ),
@@ -3673,10 +6588,20 @@ MedDiet Team
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _showEditMealDialog(meal),
+                    icon: const Icon(Icons.edit),
+                    color: AppColors.primary,
+                    iconSize: 20,
+                    tooltip: 'Edit Meal',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -3714,7 +6639,10 @@ MedDiet Team
               children: [
                 // Proper Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
                   decoration: BoxDecoration(
                     gradient: AppColors.primaryGradient,
                     borderRadius: const BorderRadius.only(
@@ -3727,10 +6655,14 @@ MedDiet Team
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.assignment_turned_in, color: Colors.white, size: 24),
+                        child: const Icon(
+                          Icons.assignment_turned_in,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Column(
@@ -3748,7 +6680,7 @@ MedDiet Team
                             'Recording progress for ${patient['name']}',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -3791,7 +6723,7 @@ MedDiet Team
                           ],
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Exercise Section with Checkbox
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -3805,7 +6737,11 @@ MedDiet Team
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.fitness_center, color: AppColors.primary, size: 20),
+                                  Icon(
+                                    Icons.fitness_center,
+                                    color: AppColors.primary,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   const Text(
                                     'Exercise',
@@ -3848,23 +6784,37 @@ MedDiet Team
                                 TextField(
                                   controller: _exerciseNameController,
                                   decoration: InputDecoration(
-                                    hintText: 'Enter exercise details (e.g., 30 min walking, yoga, gym)',
-                                    hintStyle: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                    hintText:
+                                        'Enter exercise details (e.g., 30 min walking, yoga, gym)',
+                                    hintStyle: TextStyle(
+                                      color: Colors.grey[400],
+                                      fontSize: 13,
+                                    ),
                                     filled: true,
                                     fillColor: Colors.white,
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFE5E5E5),
+                                      ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+                                      borderSide: const BorderSide(
+                                        color: Color(0xFFE5E5E5),
+                                      ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(color: AppColors.primary, width: 2),
+                                      borderSide: BorderSide(
+                                        color: AppColors.primary,
+                                        width: 2,
+                                      ),
                                     ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 12,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -3872,7 +6822,7 @@ MedDiet Team
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Meals Section
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -3886,7 +6836,11 @@ MedDiet Team
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.restaurant_menu, color: AppColors.success, size: 20),
+                                  Icon(
+                                    Icons.restaurant_menu,
+                                    color: AppColors.success,
+                                    size: 20,
+                                  ),
                                   const SizedBox(width: 8),
                                   const Text(
                                     'Meals Today',
@@ -3942,7 +6896,7 @@ MedDiet Team
                           ),
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Supplements & Cravings Row
                         Row(
                           children: [
@@ -3966,13 +6920,14 @@ MedDiet Team
                           ],
                         ),
                         const SizedBox(height: 20),
-                        
+
                         // Clinical Notes
                         _buildFollowUpField(
                           label: 'Diet Adherence & Clinical Notes',
                           controller: _notesController,
                           icon: Icons.notes,
-                          hint: 'Document patient adherence and any difficulties encountered...',
+                          hint:
+                              'Document patient adherence and any difficulties encountered...',
                           maxLines: 4,
                         ),
                       ],
@@ -3981,7 +6936,10 @@ MedDiet Team
                 ),
                 // Proper Footer
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
                   decoration: const BoxDecoration(
                     color: Color(0xFFF8F9FA),
                     border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
@@ -3996,7 +6954,10 @@ MedDiet Team
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
                         ),
                         child: const Text(
                           'Cancel',
@@ -4019,13 +6980,16 @@ MedDiet Team
                         },
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             gradient: AppColors.primaryGradient,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primary.withOpacity(0.3),
+                                color: AppColors.primary.withValues(alpha: 0.3),
                                 blurRadius: 10,
                                 offset: const Offset(0, 4),
                               ),
@@ -4081,7 +7045,10 @@ MedDiet Team
             prefixIcon: Icon(icon, size: 18, color: AppColors.primary),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
@@ -4125,7 +7092,10 @@ MedDiet Team
             hintStyle: TextStyle(color: Colors.grey[400], fontSize: 12),
             filled: true,
             fillColor: Colors.white,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
@@ -4145,37 +7115,112 @@ MedDiet Team
   }
 
   Widget _buildSupplementsSection(Map<String, dynamic> patient) {
-    // Sample supplements data
-    final List<Map<String, dynamic>> supplements = [
-      {
-        'name': 'Vitamin D3',
-        'dosage': '2000 IU',
-        'frequency': 'Once daily',
-        'time': '08:00 AM',
-        'status': 'Taken',
-      },
-      {
-        'name': 'Omega-3 Fish Oil',
-        'dosage': '1000 mg',
-        'frequency': 'Twice daily',
-        'time': '08:00 AM, 08:00 PM',
-        'status': 'Taken',
-      },
-      {
-        'name': 'Multivitamin',
-        'dosage': '1 tablet',
-        'frequency': 'Once daily',
-        'time': '08:00 AM',
-        'status': 'Taken',
-      },
-      {
-        'name': 'Protein Powder',
-        'dosage': '30g',
-        'frequency': 'Post-workout',
-        'time': '07:30 AM',
-        'status': 'Pending',
-      },
-    ];
+    // Get supplements from patient data
+    final supplements = patient['supplementsToday'] as List? ?? [];
+
+    // Handle empty supplements list
+    if (supplements.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(26),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, Colors.blue.withValues(alpha: 0.02)],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.blue.withValues(alpha: 0.2),
+            width: 1.5,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.medication,
+                        color: Colors.blue,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Supplements & Vitamins',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: _showAddSupplementDialog,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.blue,
+                          Colors.blue.withValues(alpha: 0.8),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          'Add Supplement',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No supplement data available yet',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       padding: const EdgeInsets.all(26),
@@ -4183,13 +7228,16 @@ MedDiet Team
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, Colors.blue.withOpacity(0.02)],
+          colors: [Colors.white, Colors.blue.withValues(alpha: 0.02)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.blue.withOpacity(0.2), width: 1.5),
+        border: Border.all(
+          color: Colors.blue.withValues(alpha: 0.2),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withOpacity(0.08),
+            color: Colors.blue.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -4207,14 +7255,14 @@ MedDiet Team
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      Colors.blue.withOpacity(0.15),
-                      Colors.blue.withOpacity(0.08),
+                      Colors.blue.withValues(alpha: 0.15),
+                      Colors.blue.withValues(alpha: 0.08),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withOpacity(0.2),
+                      color: Colors.blue.withValues(alpha: 0.2),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -4243,7 +7291,7 @@ MedDiet Team
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -4268,12 +7316,12 @@ MedDiet Team
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [Colors.blue, Colors.blue.withOpacity(0.8)],
+                      colors: [Colors.blue, Colors.blue.withValues(alpha: 0.8)],
                     ),
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.blue.withOpacity(0.3),
+                        color: Colors.blue.withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -4300,7 +7348,6 @@ MedDiet Team
           ),
           const SizedBox(height: 20),
           ...supplements.map((supplement) {
-            final isTaken = supplement['status'] == 'Taken';
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
@@ -4314,7 +7361,7 @@ MedDiet Team
                 border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -4329,12 +7376,15 @@ MedDiet Team
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Colors.blue, Colors.blue.withOpacity(0.6)],
+                        colors: [
+                          Colors.blue,
+                          Colors.blue.withValues(alpha: 0.6),
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(3),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.blue.withOpacity(0.3),
+                          color: Colors.blue.withValues(alpha: 0.3),
                           blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
@@ -4348,7 +7398,10 @@ MedDiet Team
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Colors.blue.withOpacity(0.8), Colors.blue],
+                        colors: [
+                          Colors.blue.withValues(alpha: 0.8),
+                          Colors.blue,
+                        ],
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -4365,54 +7418,47 @@ MedDiet Team
                       children: [
                         Row(
                           children: [
-                            Text(
-                              supplement['name'] as String,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2D3142),
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
+                            Expanded(
                               child: Text(
-                                supplement['dosage'] as String,
+                                supplement['supplement_name'] ??
+                                    supplement['name'] ??
+                                    'Supplement',
                                 style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.blue,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2D3142),
+                                  letterSpacing: 0.2,
                                 ),
                               ),
                             ),
+                            if (supplement['dosage'] != null &&
+                                (supplement['dosage'] as String)
+                                    .isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  supplement['dosage'] as String,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: Color(0xFF9E9E9E),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              supplement['time'] as String,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFF9E9E9E),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
                             const Icon(
                               Icons.repeat,
                               size: 14,
@@ -4420,11 +7466,69 @@ MedDiet Team
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              supplement['frequency'] as String,
+                              supplement['frequency'] as String? ??
+                                  'once daily',
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF9E9E9E),
                                 fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Completion Status Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    (supplement['is_completed'] == true ||
+                                        supplement['is_completed'] == 1)
+                                    ? AppColors.success.withValues(alpha: 0.1)
+                                    : Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color:
+                                      (supplement['is_completed'] == true ||
+                                          supplement['is_completed'] == 1)
+                                      ? AppColors.success.withValues(alpha: 0.3)
+                                      : Colors.orange.withValues(alpha: 0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    (supplement['is_completed'] == true ||
+                                            supplement['is_completed'] == 1)
+                                        ? Icons.check_circle
+                                        : Icons.pending,
+                                    size: 12,
+                                    color:
+                                        (supplement['is_completed'] == true ||
+                                            supplement['is_completed'] == 1)
+                                        ? AppColors.success
+                                        : Colors.orange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    (supplement['is_completed'] == true ||
+                                            supplement['is_completed'] == 1)
+                                        ? 'Completed'
+                                        : 'Pending',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color:
+                                          (supplement['is_completed'] == true ||
+                                              supplement['is_completed'] == 1)
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
@@ -4432,57 +7536,29 @@ MedDiet Team
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isTaken
-                            ? [
-                                AppColors.success.withOpacity(0.15),
-                                AppColors.success.withOpacity(0.08),
-                              ]
-                            : [
-                                Colors.orange.withOpacity(0.15),
-                                Colors.orange.withOpacity(0.08),
-                              ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: isTaken
-                            ? AppColors.success.withOpacity(0.3)
-                            : Colors.orange.withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isTaken ? Icons.check_circle : Icons.pending,
-                          size: 16,
-                          color: isTaken ? AppColors.success : Colors.orange,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          supplement['status'] as String,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: isTaken ? AppColors.success : Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () => _showEditSupplementDialog(supplement),
+                    icon: const Icon(Icons.edit),
+                    color: AppColors.primary,
+                    iconSize: 20,
+                    tooltip: 'Edit Supplement',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  IconButton(
+                    onPressed: () => _confirmDeleteSupplement(supplement),
+                    icon: const Icon(Icons.delete),
+                    color: Colors.red,
+                    iconSize: 20,
+                    tooltip: 'Delete Supplement',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -4513,7 +7589,7 @@ MedDiet Team
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
+                    color: AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
@@ -4537,10 +7613,7 @@ MedDiet Team
             Center(
               child: Text(
                 'No weight data available yet',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[500],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
               ),
             ),
           ],
@@ -4554,16 +7627,16 @@ MedDiet Team
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.white, AppColors.primary.withOpacity(0.02)],
+          colors: [Colors.white, AppColors.primary.withValues(alpha: 0.02)],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withOpacity(0.08),
+            color: AppColors.primary.withValues(alpha: 0.08),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -4580,7 +7653,7 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: AppColors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
@@ -4606,7 +7679,7 @@ MedDiet Team
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -4671,8 +7744,8 @@ MedDiet Team
                                     begin: Alignment.topCenter,
                                     end: Alignment.bottomCenter,
                                     colors: [
-                                      AppColors.primary.withOpacity(0.3),
-                                      AppColors.primary.withOpacity(0.1),
+                                      AppColors.primary.withValues(alpha: 0.3),
+                                      AppColors.primary.withValues(alpha: 0.1),
                                     ],
                                   ),
                             borderRadius: BorderRadius.circular(8),
@@ -4694,6 +7767,370 @@ MedDiet Team
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showEditStepGoalDialog(Map<String, dynamic> patient) {
+    final TextEditingController controller = TextEditingController(
+      text: patient['targetSteps'].toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: 400,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.white, AppColors.primary.withValues(alpha: 0.02)],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: AppColors.primaryGradient,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.directions_walk,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Edit Step Goal',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3142),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Set daily target for ${patient['name']}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Input Field
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF2D3142),
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Steps Goal',
+                    labelStyle: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    hintText: '10000',
+                    hintStyle: TextStyle(color: Colors.grey[400]),
+                    suffixText: 'steps',
+                    suffixStyle: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                    prefixIcon: Icon(Icons.flag, color: AppColors.primary),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(16),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Info Card
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.blue.withValues(alpha: 0.08),
+                      Colors.blue.withValues(alpha: 0.03),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Colors.blue.withValues(alpha: 0.2),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.info_outline,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Recommended: 10,000 steps per day',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue[900],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Valid range: 1,000 - 50,000 steps',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.blue[700],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Action Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final newGoal = int.tryParse(controller.text);
+                      if (newGoal == null ||
+                          newGoal < 1000 ||
+                          newGoal > 50000) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Row(
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.white),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Please enter a valid step goal (1,000 - 50,000)',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.red[600],
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Update step goal via API
+                      final patientId =
+                          (patient['patient_id'] ?? patient['id'] ?? '')
+                              .toString();
+
+                      debugPrint(
+                        '🔍 Updating step goal for patient: $patientId',
+                      );
+                      debugPrint('📊 New goal: $newGoal');
+                      debugPrint('📦 Patient data: ${patient.toString()}');
+
+                      if (patientId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Row(
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.white),
+                                SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Patient ID not found',
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.red[600],
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final response = await PlanService.updateStepGoal(
+                        patientId,
+                        newGoal,
+                      );
+
+                      if (!mounted) return;
+
+                      if (response.success) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Step goal updated to ${newGoal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} steps',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.green[600],
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+
+                        // Refresh patient data
+                        setState(() {
+                          patient['targetSteps'] = newGoal;
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Failed to update: ${response.message}',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: Colors.red[600],
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.check, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Save',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:meddiet/services/auth_service.dart';
 import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
+import 'package:meddiet/screens/main_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math' as math;
+import 'package:url_launcher/url_launcher.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -14,7 +16,8 @@ class DashboardPage extends StatefulWidget {
   State<DashboardPage> createState() => _DashboardPageState();
 }
 
-class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveClientMixin {
+class _DashboardPageState extends State<DashboardPage>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -23,10 +26,29 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
   int _totalPatients = 0;
   bool _isLoading = true;
 
+  // Calendar data
+  late DateTime _selectedDate;
+  late DateTime _currentMonth;
+  late List<DateTime> _weekDays;
+
   @override
   void initState() {
     super.initState();
+    _selectedDate = DateTime.now();
+    _currentMonth = DateTime.now();
+    _generateWeekDays();
     _fetchDashboardData();
+  }
+
+  /// Generate the current week days for calendar display
+  void _generateWeekDays() {
+    final now = _selectedDate;
+    final weekday = now.weekday % 7; // Convert to Sunday = 0
+    final startOfWeek = now.subtract(Duration(days: weekday));
+    _weekDays = List.generate(
+      7,
+      (index) => startOfWeek.add(Duration(days: index)),
+    );
   }
 
   Future<void> _fetchDashboardData() async {
@@ -107,15 +129,9 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
               child: Row(
                 children: [
                   // Center column - Transactions & Summary (80%)
-                  Expanded(
-                    flex: 8,
-                    child: _buildCenterColumn(),
-                  ),
+                  Expanded(flex: 8, child: _buildCenterColumn()),
                   // Right column - Contacts (20%)
-                  Expanded(
-                    flex: 2,
-                    child: _buildRightSidebar(),
-                  ),
+                  Expanded(flex: 2, child: _buildRightSidebar()),
                 ],
               ),
             ),
@@ -149,77 +165,51 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           ),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Personal Account',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF2D3142),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down, size: 18),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              // Notification bell with red dot
+              InkWell(
+                onTap: () {
+                  // Open notifications drawer from main layout
+                  final scaffoldContext = context
+                      .findAncestorStateOfType<ScaffoldState>()
+                      ?.context;
+                  if (scaffoldContext != null) {
+                    MainLayout.openNotifications(scaffoldContext);
+                  }
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.credit_card, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF2D3142)),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF2D3142)),
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.notifications_outlined,
+                        size: 18,
+                        color: Color(0xFF2D3142),
+                      ),
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
+              // Profile avatar
               InkWell(
                 onTap: () => Scaffold.of(context).openEndDrawer(),
                 child: CircleAvatar(
@@ -275,10 +265,16 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                 color: Color(0xFF2D3142),
               ),
             ),
-            TextButton(
-              onPressed: () {},
-              child: const Text(
-                'View Analytics',
+            TextButton.icon(
+              onPressed: () async {
+                final url = Uri.parse('http://localhost:3000/api-docs');
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.code, size: 16),
+              label: const Text(
+                'API Docs',
                 style: TextStyle(
                   color: Color(0xFF6366F1),
                   fontWeight: FontWeight.w600,
@@ -323,11 +319,38 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         const SizedBox(height: 30),
         Row(
           children: [
-            Expanded(child: _buildSummaryCard('Total Patients', _isLoading ? '...' : '$_totalPatients', 'Registered', const Color(0xFF5B4FA3), true)),
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Patients',
+                _isLoading ? '...' : '$_totalPatients',
+                'Registered',
+                const Color(0xFF5B4FA3),
+                true,
+              ),
+            ),
             const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('Active Plans', _isLoading ? '...' : '$_totalPatients', 'Active', const Color(0xFF00BCD4), false)),
+            Expanded(
+              child: _buildSummaryCard(
+                'Active Plans',
+                _isLoading ? '...' : '$_totalPatients',
+                'Active',
+                const Color(0xFF00BCD4),
+                false,
+              ),
+            ),
             const SizedBox(width: 16),
-            Expanded(child: _buildSummaryCard('This Week', _isLoading ? '...' : '${_patients.where((p) => _isRecentPatient(p)).length}', 'New Patients', const Color(0xFF5B4FA3), false, showBars: true)),
+            Expanded(
+              child: _buildSummaryCard(
+                'This Week',
+                _isLoading
+                    ? '...'
+                    : '${_patients.where((p) => _isRecentPatient(p)).length}',
+                'New Patients',
+                const Color(0xFF5B4FA3),
+                false,
+                showBars: true,
+              ),
+            ),
             const SizedBox(width: 16),
             Expanded(child: _buildPieChartCard()),
           ],
@@ -343,7 +366,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -371,7 +394,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withOpacity(0.8),
+                    Colors.black.withValues(alpha: 0.8),
                   ],
                 ),
               ),
@@ -394,7 +417,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 12,
                     ),
                   ),
@@ -454,49 +477,55 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   ),
                 )
               : _recentPatients.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Text(
-                          'No patients registered yet',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: _recentPatients.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final patient = entry.value;
-                        final name = patient['name'] ?? 'Unknown';
-                        final email = patient['email'] ?? '';
-                        final createdAt = patient['created_at'] ?? '';
-                        
-                        String timeAgo = 'New';
-                        try {
-                          final date = DateTime.parse(createdAt);
-                          final diff = DateTime.now().difference(date);
-                          if (diff.inDays > 0) {
-                            timeAgo = '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
-                          } else if (diff.inHours > 0) {
-                            timeAgo = '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
-                          } else {
-                            timeAgo = 'Just now';
-                          }
-                        } catch (e) {}
-
-                        return Padding(
-                          padding: EdgeInsets.only(bottom: index < _recentPatients.length - 1 ? 12 : 0),
-                          child: _buildRealUserItem(
-                            context,
-                            name,
-                            email,
-                            timeAgo,
-                            colors[index % colors.length],
-                          ),
-                        );
-                      }).toList(),
+              ? const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: Text(
+                      'No patients registered yet',
+                      style: TextStyle(color: Colors.grey),
                     ),
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _recentPatients.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final patient = entry.value;
+                    final name = patient['name'] ?? 'Unknown';
+                    final email = patient['email'] ?? '';
+                    final createdAt = patient['created_at'] ?? '';
+
+                    String timeAgo = 'New';
+                    try {
+                      final date = DateTime.parse(createdAt);
+                      final diff = DateTime.now().difference(date);
+                      if (diff.inDays > 0) {
+                        timeAgo =
+                            '${diff.inDays} day${diff.inDays > 1 ? 's' : ''} ago';
+                      } else if (diff.inHours > 0) {
+                        timeAgo =
+                            '${diff.inHours} hour${diff.inHours > 1 ? 's' : ''} ago';
+                      } else {
+                        timeAgo = 'Just now';
+                      }
+                    } catch (e) {
+                      debugPrint('Error parsing date: $e');
+                    }
+
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: index < _recentPatients.length - 1 ? 12 : 0,
+                      ),
+                      child: _buildRealUserItem(
+                        context,
+                        name,
+                        email,
+                        timeAgo,
+                        colors[index % colors.length],
+                      ),
+                    );
+                  }).toList(),
+                ),
         ),
       ],
     );
@@ -522,12 +551,12 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             height: 54,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [iconColor.withOpacity(0.8), iconColor],
+                colors: [iconColor.withValues(alpha: 0.8), iconColor],
               ),
               borderRadius: BorderRadius.circular(15),
               boxShadow: [
                 BoxShadow(
-                  color: iconColor.withOpacity(0.3),
+                  color: iconColor.withValues(alpha: 0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -586,14 +615,25 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.arrow_forward,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSummaryCard(String title, String amount, String currency, Color color, bool showAreaChart, {bool showBars = false}) {
+  Widget _buildSummaryCard(
+    String title,
+    String amount,
+    String currency,
+    Color color,
+    bool showAreaChart, {
+    bool showBars = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -609,10 +649,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
               Icon(Icons.trending_up, color: Colors.green, size: 14),
             ],
@@ -628,10 +665,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           ),
           Text(
             currency,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFFBDBDBD),
-            ),
+            style: const TextStyle(fontSize: 11, color: Color(0xFFBDBDBD)),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -642,14 +676,14 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                     painter: AreaChartPainter(color),
                   )
                 : showBars
-                    ? CustomPaint(
-                        size: const Size(double.infinity, 70),
-                        painter: BarChartPainter(color),
-                      )
-                    : CustomPaint(
-                        size: const Size(double.infinity, 70),
-                        painter: LineChartPainter(color),
-                      ),
+                ? CustomPaint(
+                    size: const Size(double.infinity, 70),
+                    painter: BarChartPainter(color),
+                  )
+                : CustomPaint(
+                    size: const Size(double.infinity, 70),
+                    painter: LineChartPainter(color),
+                  ),
           ),
         ],
       ),
@@ -672,10 +706,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             children: [
               const Text(
                 'Graph',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
               const Icon(Icons.trending_up, color: Colors.green, size: 14),
             ],
@@ -685,9 +716,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             child: SizedBox(
               width: 100,
               height: 100,
-              child: CustomPaint(
-                painter: DonutChartPainter(),
-              ),
+              child: CustomPaint(painter: DonutChartPainter()),
             ),
           ),
           const SizedBox(height: 12),
@@ -724,7 +753,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
                 spreadRadius: -4,
@@ -738,7 +767,10 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
               children: [
                 // Calendar Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
@@ -760,31 +792,32 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: DropdownButton<String>(
-                          value: 'April',
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
-                          underline: const SizedBox(),
-                          dropdownColor: const Color(0xFF6366F1),
-                          isDense: true,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          items: ['January', 'February', 'March', 'April', 'May', 'June', 
-                                  'July', 'August', 'September', 'October', 'November', 'December']
-                              .map((String month) {
-                            return DropdownMenuItem<String>(
-                              value: month,
-                              child: Text(month),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {},
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _getMonthYear(_currentMonth),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Colors.white,
+                              size: 14,
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -813,15 +846,13 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildCalendarDay('12', false),
-                      _buildCalendarDay('13', true),
-                      _buildCalendarDay('14', false),
-                      _buildCalendarDay('15', false),
-                      _buildCalendarDay('16', false),
-                      _buildCalendarDay('17', false),
-                      _buildCalendarDay('18', false),
-                    ],
+                    children: _weekDays.map((date) {
+                      final isSelected =
+                          date.day == _selectedDate.day &&
+                          date.month == _selectedDate.month &&
+                          date.year == _selectedDate.year;
+                      return _buildCalendarDay(date.day.toString(), isSelected);
+                    }).toList(),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -830,7 +861,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'APRIL, 13',
+                      _getFormattedDate(_selectedDate),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -903,6 +934,45 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
     );
   }
 
+  /// Get month and year (e.g., "January 2026")
+  String _getMonthYear(DateTime date) {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[date.month - 1]} ${date.year}';
+  }
+
+  /// Get formatted date (e.g., "JANUARY, 07")
+  String _getFormattedDate(DateTime date) {
+    const months = [
+      'JANUARY',
+      'FEBRUARY',
+      'MARCH',
+      'APRIL',
+      'MAY',
+      'JUNE',
+      'JULY',
+      'AUGUST',
+      'SEPTEMBER',
+      'OCTOBER',
+      'NOVEMBER',
+      'DECEMBER',
+    ];
+    final day = date.day.toString().padLeft(2, '0');
+    return '${months[date.month - 1]}, $day';
+  }
+
   Widget _buildCalendarDay(String day, bool isSelected) {
     return Container(
       width: 30,
@@ -953,10 +1023,7 @@ class _DashboardPageState extends State<DashboardPage> with AutomaticKeepAliveCl
           width: 6,
           height: 6,
           margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            color: dotColor,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
         const SizedBox(width: 10),
         // Title
@@ -984,7 +1051,7 @@ class AreaChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.3)
+      ..color = color.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -1029,7 +1096,11 @@ class LineChartPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.5), 4, dotPaint);
+    canvas.drawCircle(
+      Offset(size.width * 0.75, size.height * 0.5),
+      4,
+      dotPaint,
+    );
   }
 
   @override
@@ -1056,7 +1127,10 @@ class BarChartPainter extends CustomPainter {
         Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight),
         const Radius.circular(4),
       );
-      canvas.drawRRect(rect, paint..color = color.withOpacity(i % 2 == 0 ? 1.0 : 0.5));
+      canvas.drawRRect(
+        rect,
+        paint..color = color.withValues(alpha: i % 2 == 0 ? 1.0 : 0.5),
+      );
     }
   }
 
@@ -1113,4 +1187,3 @@ class DonutChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

@@ -132,7 +132,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                                 setState(() => _selectedFilter = filter);
                               },
                               backgroundColor: Colors.transparent,
-                              selectedColor: AppColors.primary.withOpacity(0.2),
+                              selectedColor: AppColors.primary.withValues(alpha: 0.2),
                               side: BorderSide(
                                 color: isSelected ? AppColors.primary : AppColors.border,
                                 width: isSelected ? 2 : 1,
@@ -194,10 +194,10 @@ class _DietPlansPageState extends State<DietPlansPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.08),
+        color: AppColors.primary.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: AppColors.primary.withOpacity(0.2),
+          color: AppColors.primary.withValues(alpha: 0.2),
           width: 0.5,
         ),
       ),
@@ -292,7 +292,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
           color: index % 2 == 0 ? Colors.white : Colors.white,
           border: Border(
             bottom: BorderSide(
-              color: AppColors.border.withOpacity(0.5),
+              color: AppColors.border.withValues(alpha: 0.5),
               width: 0.5,
             ),
           ),
@@ -314,7 +314,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: plan['color'].withOpacity(0.2),
+                              color: plan['color'].withValues(alpha: 0.2),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -326,7 +326,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                             imageUrl: plan['image'],
                             fit: BoxFit.cover,
                             placeholder: (context, url) => Container(
-                              color: plan['color'].withOpacity(0.1),
+                              color: plan['color'].withValues(alpha: 0.1),
                               child: Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
@@ -335,7 +335,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                               ),
                             ),
                             errorWidget: (context, url, error) => Container(
-                              color: plan['color'].withOpacity(0.1),
+                              color: plan['color'].withValues(alpha: 0.1),
                               child: Icon(plan['icon'], color: plan['color'], size: 20),
                             ),
                           ),
@@ -401,10 +401,10 @@ class _DietPlansPageState extends State<DietPlansPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: plan['color'].withOpacity(0.15),
+                        color: plan['color'].withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: plan['color'].withOpacity(0.3),
+                          color: plan['color'].withValues(alpha: 0.3),
                           width: 0.5,
                         ),
                       ),
@@ -455,10 +455,10 @@ class _DietPlansPageState extends State<DietPlansPage> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             width: 0.5,
           ),
         ),
@@ -480,7 +480,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.3),
+                color: AppColors.primary.withValues(alpha: 0.3),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
@@ -571,7 +571,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [plan['color'], plan['color'].withOpacity(0.6)],
+                      colors: [plan['color'], plan['color'].withValues(alpha: 0.6)],
                     ),
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -677,4 +677,5 @@ class _DietPlansPageState extends State<DietPlansPage> {
     );
   }
 }
+
 

@@ -82,7 +82,7 @@ class ReportsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -98,7 +98,7 @@ class ReportsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 24),
@@ -106,7 +106,7 @@ class ReportsPage extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.1),
+                  color: AppColors.success.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -157,7 +157,7 @@ class ReportsPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -208,7 +208,7 @@ class ReportsPage extends StatelessWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             AppColors.primary,
-                            AppColors.primary.withOpacity(0.4),
+                            AppColors.primary.withValues(alpha: 0.4),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(6),
@@ -233,4 +233,5 @@ class ReportsPage extends StatelessWidget {
     );
   }
 }
+
 

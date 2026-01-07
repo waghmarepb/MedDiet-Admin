@@ -83,10 +83,11 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                 builder: (context) => const MainLayout(showLoginSuccess: true)),
           );
         } else {
-          _showSnackBar(data['message'] ?? "Login failed");
+          _showSnackBar(data['message'] ?? "Login failed", isError: true);
         }
       } catch (e) {
-        _showSnackBar("An error occurred. Please try again.");
+        debugPrint('Login Error: $e');
+        _showSnackBar("Connection error. Please check your internet.", isError: true);
       } finally {
         if (mounted) setState(() => isLoading = false);
       }
@@ -132,12 +133,12 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
             Positioned(
               top: -100,
               right: -100,
-              child: _buildDecorativeCircle(300, Colors.white.withOpacity(0.1)),
+              child: _buildDecorativeCircle(300, Colors.white.withValues(alpha: 0.1)),
             ),
             Positioned(
               bottom: -50,
               left: -50,
-              child: _buildDecorativeCircle(200, Colors.white.withOpacity(0.1)),
+              child: _buildDecorativeCircle(200, Colors.white.withValues(alpha: 0.1)),
             ),
             
             Center(
@@ -147,11 +148,11 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                   width: isDesktop ? 1000 : size.width * 0.9,
                   height: isDesktop ? 600 : null,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.15),
+                        color: Colors.black.withValues(alpha: 0.15),
                         blurRadius: 30,
                         spreadRadius: 10,
                       ),
@@ -200,8 +201,8 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF4DB8A8).withOpacity(0.7),
-                    const Color(0xFF7B68B8).withOpacity(0.8),
+                    const Color(0xFF4DB8A8).withValues(alpha: 0.7),
+                    const Color(0xFF7B68B8).withValues(alpha: 0.8),
                   ],
                 ),
               ),
@@ -224,7 +225,7 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
                   Text(
                     "Empowering healthcare with advanced dietary management solutions.",
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 16,
                     ),
                   ),
@@ -548,12 +549,12 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
     );
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 2),
+        backgroundColor: isError ? Colors.red : AppColors.primary,
+        duration: const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(20),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -561,3 +562,4 @@ class _SignInScreenState extends State<SignInScreen> with SingleTickerProviderSt
     );
   }
 }
+

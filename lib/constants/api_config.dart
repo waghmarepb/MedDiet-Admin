@@ -1,4 +1,3 @@
 class ApiConfig {
-  static const String baseUrl =
-      "https://meddiet-backend-bpdo4lk33-prakrut.vercel.app/api/v1";
+  static const String baseUrl = "http://192.168.1.103:3000/api/v1";
 }

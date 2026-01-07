@@ -271,32 +271,32 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               const SizedBox(height: 24),
               _buildTransactionItem(
                 context,
-                'Mike Taylor',
-                'Patient - Diet Plan Active',
-                'Chicago, TX',
-                'INR',
-                const Color(0xFF5B4FA3),
-                Icons.person,
+                patientId: '1',
+                title: 'Mike Taylor',
+                subtitle: 'Patient - Diet Plan Active',
+                location: 'Chicago, TX',
+                iconColor: const Color(0xFF5B4FA3),
+                icon: Icons.person,
               ),
               const SizedBox(height: 12),
               _buildTransactionItem(
                 context,
-                'Jack Green',
-                'Patient - Consultation Scheduled',
-                'Oakland, CO',
-                'INR',
-                const Color(0xFF00BCD4),
-                Icons.person,
+                patientId: '2',
+                title: 'Jack Green',
+                subtitle: 'Patient - Consultation Scheduled',
+                location: 'Oakland, CO',
+                iconColor: const Color(0xFF00BCD4),
+                icon: Icons.person,
               ),
               const SizedBox(height: 12),
               _buildTransactionItem(
                 context,
-                'Carmen Lewis',
-                'Patient - New Registration',
-                'Milwaukee, CA',
-                'INR',
-                const Color(0xFFFF9800),
-                Icons.person,
+                patientId: '3',
+                title: 'Carmen Lewis',
+                subtitle: 'Patient - New Registration',
+                location: 'Milwaukee, CA',
+                iconColor: const Color(0xFFFF9800),
+                icon: Icons.person,
               ),
             ],
           ),
@@ -338,14 +338,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   }
 
   Widget _buildTransactionItem(
-    BuildContext context,
-    String title,
-    String subtitle,
-    String location,
-    String currency,
-    Color iconColor,
-    IconData icon,
-  ) {
+    BuildContext context, {
+    required String patientId,
+    required String title,
+    required String subtitle,
+    required String location,
+    required Color iconColor,
+    required IconData icon,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -358,7 +358,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
+              color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor, size: 22),
@@ -401,6 +401,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               Navigator.of(context).push(
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => UserDetailsPage(
+                    patientId: patientId,
                     userName: title,
                     userStatus: subtitle,
                     userLocation: location,
@@ -608,7 +609,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.06),
+                color: Colors.black.withValues(alpha: 0.06),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
                 spreadRadius: -4,
@@ -646,7 +647,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: DropdownButton<String>(
@@ -868,7 +869,7 @@ class AreaChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color.withOpacity(0.3)
+      ..color = color.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     final path = Path();
@@ -940,7 +941,7 @@ class BarChartPainter extends CustomPainter {
         Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight),
         const Radius.circular(4),
       );
-      canvas.drawRRect(rect, paint..color = color.withOpacity(i % 2 == 0 ? 1.0 : 0.5));
+      canvas.drawRRect(rect, paint..color = color.withValues(alpha: i % 2 == 0 ? 1.0 : 0.5));
     }
   }
 
@@ -997,3 +998,4 @@ class DonutChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
