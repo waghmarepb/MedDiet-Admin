@@ -2104,28 +2104,54 @@ MedDiet Team
       final patient = patients[selectedPatientIndex];
       final patientId = patient['patient_id'] ?? patient['id'];
 
-      // Get meal ID from the meals data cache
-      final mealsData = _patientsMealsData[patientId] ?? [];
-      final mealData = mealsData.firstWhere(
-        (m) =>
-            m['meal_name'] == oldMeal['name'] &&
-            m['meal_type'] == oldMeal['type'],
-        orElse: () => {},
-      );
+      // Get meal ID - check if it's already in oldMeal or find it from cache
+      String? mealId;
 
-      if (mealData.isEmpty || mealData['id'] == null) {
-        debugPrint('❌ Could not find meal ID');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: Could not find meal to update'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isAddingMeal = false);
-        return;
+      if (oldMeal.containsKey('id') && oldMeal['id'] != null) {
+        // ID is already in the meal object
+        mealId = oldMeal['id'].toString();
+        debugPrint('✅ Using meal ID from oldMeal: $mealId');
+      } else {
+        // Need to find ID from the meals data cache
+        final mealsData = _patientsMealsData[patientId] ?? [];
+
+        debugPrint('🔍 Looking for meal with:');
+        debugPrint('   oldMeal[name]: ${oldMeal['name']}');
+        debugPrint('   oldMeal[type]: ${oldMeal['type']}');
+        debugPrint('   Available meals: ${mealsData.length}');
+
+        final mealData = mealsData.firstWhere((m) {
+          final mealName = oldMeal['name'] ?? oldMeal['meal_name'];
+          final mealType = oldMeal['type'] ?? oldMeal['meal_type'];
+          debugPrint(
+            '   Checking meal: ${m['meal_name']} (${m['meal_type']}) - ID: ${m['id']}',
+          );
+          return m['meal_name'] == mealName && m['meal_type'] == mealType;
+        }, orElse: () => {});
+
+        if (mealData.isEmpty || mealData['id'] == null) {
+          debugPrint('❌ Could not find meal ID');
+          debugPrint(
+            '   Searched for: ${oldMeal['name']} (${oldMeal['type']})',
+          );
+          debugPrint(
+            '   Available meals: ${mealsData.map((m) => '${m['meal_name']} (${m['meal_type']})').join(', ')}',
+          );
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Error: Could not find meal to update. Try refreshing the patient list.',
+              ),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          setState(() => _isAddingMeal = false);
+          return;
+        }
+
+        mealId = mealData['id'].toString();
       }
-
-      final mealId = mealData['id'].toString();
 
       debugPrint(
         '🍽️ Preparing to update meal $mealId for patient: $patientId',
@@ -2451,7 +2477,7 @@ MedDiet Team
 
   void _showEditMealDialog(Map<String, dynamic> meal) {
     // Populate form with meal data
-    _mealNameController.text = meal['name'] ?? '';
+    _mealNameController.text = meal['name'] ?? meal['meal_name'] ?? '';
     _mealCaloriesController.text = meal['calories']?.toString() ?? '';
     _mealTimeController.text = meal['time'] ?? '';
     _mealDescriptionController.text = meal['description'] ?? '';
@@ -2459,7 +2485,7 @@ MedDiet Team
     _mealCarbsController.text = meal['carbs']?.toString() ?? '';
     _mealFatsController.text = meal['fats']?.toString() ?? '';
 
-    final mealType = meal['type'] ?? 'breakfast';
+    final mealType = meal['type'] ?? meal['meal_type'] ?? 'breakfast';
     setState(() => selectedMealType = _convertMealTypeToDisplay(mealType));
 
     showDialog(
