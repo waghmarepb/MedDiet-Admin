@@ -211,6 +211,100 @@ class _PatientsPageState extends State<PatientsPage> {
   // Cache for patients supplements data
   final Map<String, List<dynamic>> _patientsSupplementsData = {};
 
+  /// Refresh only meals for a specific patient
+  Future<void> _refreshPatientMeals(String patientId) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientMeals(patientId)}?date=$today'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _patientsMealsData[patientId] = data['data'] as List<dynamic>;
+          });
+          debugPrint('✅ Refreshed meals for patient $patientId');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error refreshing meals: $e');
+    }
+  }
+
+  /// Refresh only exercises for a specific patient
+  Future<void> _refreshPatientExercises(String patientId) async {
+    try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientExercises(patientId)}?date=$today'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _patientsExercisesData[patientId] = data['data'] as List<dynamic>;
+          });
+          debugPrint('✅ Refreshed exercises for patient $patientId');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error refreshing exercises: $e');
+    }
+  }
+
+  /// Refresh only supplements for a specific patient
+  Future<void> _refreshPatientSupplements(String patientId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientSupplements(patientId)}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _patientsSupplementsData[patientId] = data['data'] as List<dynamic>;
+          });
+          debugPrint('✅ Refreshed supplements for patient $patientId');
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error refreshing supplements: $e');
+    }
+  }
+
+  /// Smart refresh - only refreshes specific data without full page reload
+  Future<void> _smartRefresh(String patientId, {
+    bool meals = false,
+    bool exercises = false,
+    bool supplements = false,
+  }) async {
+    final futures = <Future>[];
+    
+    if (meals) futures.add(_refreshPatientMeals(patientId));
+    if (exercises) futures.add(_refreshPatientExercises(patientId));
+    if (supplements) futures.add(_refreshPatientSupplements(patientId));
+    
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
+    }
+  }
+
   /// Fetch patients from API
   Future<void> _fetchPatients() async {
     setState(() {
@@ -1181,9 +1275,9 @@ MedDiet Team
           );
         }
 
-        // Refresh patient data
-        debugPrint('🔄 Refreshing patient data...');
-        _fetchPatients();
+        // Refresh only exercises for this patient (smooth update)
+        debugPrint('🔄 Refreshing exercises for patient $patientId...');
+        await _smartRefresh(patientId, exercises: true);
       } else {
         debugPrint('❌ Failed to add exercise: ${response.message}');
         if (mounted) {
@@ -1263,9 +1357,9 @@ MedDiet Team
           );
         }
 
-        // Refresh patient data
-        debugPrint('🔄 Refreshing patient data...');
-        _fetchPatients();
+        // Refresh only supplements for this patient (smooth update)
+        debugPrint('🔄 Refreshing supplements for patient $patientId...');
+        await _smartRefresh(patientId, supplements: true);
       } else {
         debugPrint('❌ Failed to add supplement: ${response.message}');
         if (mounted) {
@@ -1872,6 +1966,7 @@ MedDiet Team
       if (response.success) {
         debugPrint('✅ Supplement updated successfully');
         if (mounted) {
+          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Supplement updated successfully'),
@@ -1879,7 +1974,8 @@ MedDiet Team
             ),
           );
         }
-        _fetchPatients();
+        // Refresh only supplements for this patient (smooth update)
+        await _smartRefresh(patientId, supplements: true);
       } else {
         debugPrint('❌ Failed to update supplement: ${response.message}');
         if (mounted) {
@@ -1958,7 +2054,8 @@ MedDiet Team
             ),
           );
         }
-        _fetchPatients();
+        // Refresh only supplements for this patient (smooth update)
+        await _smartRefresh(patientId, supplements: true);
       } else {
         debugPrint('❌ Failed to delete supplement: ${response.message}');
         if (mounted) {
@@ -2133,9 +2230,9 @@ MedDiet Team
         }
       }
 
-      // Refresh patient data
-      debugPrint('🔄 Refreshing patient data...');
-      _fetchPatients();
+      // Refresh only exercises for this patient (smooth update)
+      debugPrint('🔄 Refreshing exercises for patient $patientId...');
+      await _smartRefresh(patientId, exercises: true);
     } catch (e, stackTrace) {
       debugPrint('❌ EXCEPTION in _handleDeleteAllExercises: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -2462,6 +2559,7 @@ MedDiet Team
       if (response.success) {
         debugPrint('✅ Exercise updated successfully');
         if (mounted) {
+          Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Exercise updated successfully'),
@@ -2469,7 +2567,8 @@ MedDiet Team
             ),
           );
         }
-        _fetchPatients();
+        // Refresh only exercises for this patient (smooth update)
+        await _smartRefresh(patientId, exercises: true);
       } else {
         debugPrint('❌ Failed to update exercise: ${response.message}');
         if (mounted) {
@@ -2619,9 +2718,9 @@ MedDiet Team
           );
         }
 
-        // Refresh patient data
-        debugPrint('🔄 Refreshing patient data...');
-        _fetchPatients();
+        // Refresh only meals for this patient (smooth update)
+        debugPrint('🔄 Refreshing meals for patient $patientId...');
+        await _smartRefresh(patientId, meals: true);
       } else {
         debugPrint('❌ Failed to update meal: ${response.message}');
         if (mounted) {
@@ -2737,9 +2836,9 @@ MedDiet Team
           );
         }
 
-        // Refresh patient data
-        debugPrint('🔄 Refreshing patient data...');
-        _fetchPatients();
+        // Refresh only meals for this patient (smooth update)
+        debugPrint('🔄 Refreshing meals for patient $patientId...');
+        await _smartRefresh(patientId, meals: true);
       } else {
         debugPrint('❌ Failed to add meal: ${response.message}');
         if (mounted) {
@@ -2862,9 +2961,9 @@ MedDiet Team
           );
         }
 
-        // Refresh patient data
-        debugPrint('🔄 Refreshing patient data...');
-        _fetchPatients();
+        // Refresh only meals for this patient (smooth update)
+        debugPrint('🔄 Refreshing meals for patient $patientId...');
+        await _smartRefresh(patientId, meals: true);
       } else {
         debugPrint('❌ Failed to delete meals: ${response.message}');
 
