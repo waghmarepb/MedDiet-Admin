@@ -72,8 +72,6 @@ class _PatientsPageState extends State<PatientsPage> {
   final _supplementEndDateController = TextEditingController();
   String? selectedSupplementFrequency;
 
-  // Exercise checkbox state
-  bool _didExercise = false;
   bool _isAddingMeal = false;
   bool _isAddingExercise = false;
   bool _isAddingSupplement = false;
@@ -1295,6 +1293,314 @@ MedDiet Team
   }
 
   /// Show edit supplement dialog
+  void _showBMIDialog(Map<String, dynamic> patient) {
+    final height = patient['height'] as double? ?? 170.0; // cm
+    final progressRaw = patient['weightProgress'] as List? ?? [];
+    final weights = progressRaw.map((e) => (e as num).toDouble()).toList();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            width: 700,
+            height: 600,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primary.withValues(alpha: 0.8),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.monitor_weight,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'BMI Analysis',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Historical BMI tracking and trends',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Current BMI Card
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Current BMI',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF9E9E9E),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    patient['bmi'].toString(),
+                                    style: TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const Spacer(),
+                              _buildBMICategoryChip(
+                                patient['bmi'] as double? ?? 0.0,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Recent Records',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3142),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (weights.isEmpty)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 40),
+                              child: Text(
+                                'No historical BMI data found',
+                                style: TextStyle(color: Color(0xFF9E9E9E)),
+                              ),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: weights.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              // Latest weights are usually at the end, so reverse for display
+                              final weight =
+                                  weights[weights.length - 1 - index];
+                              final bmi = _calculateBMI(weight, height);
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8F9FA),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E5E5),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Record ${weights.length - index}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF9E9E9E),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Weight: $weight kg',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            color: Color(0xFF2D3142),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        const Text(
+                                          'BMI',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF9E9E9E),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          bmi.toStringAsFixed(1),
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F9FA),
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 14,
+                          ),
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Close',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBMICategoryChip(double bmi) {
+    String category = 'Normal';
+    Color color = Colors.green;
+
+    if (bmi < 18.5) {
+      category = 'Underweight';
+      color = Colors.orange;
+    } else if (bmi >= 25 && bmi < 30) {
+      category = 'Overweight';
+      color = Colors.orange;
+    } else if (bmi >= 30) {
+      category = 'Obese';
+      color = Colors.red;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Text(
+        category,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
   void _showEditSupplementDialog(Map<String, dynamic> supplement) {
     // Populate form with supplement data
     _supplementNameController.text =
@@ -1313,13 +1619,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -1379,39 +1685,52 @@ MedDiet Team
                   ),
                 ),
                 // Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDialogTextField(
-                        'Supplement Name',
-                        'e.g., Vitamin D3',
-                        controller: _supplementNameController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Dosage',
-                        'e.g., 1000 IU',
-                        controller: _supplementDosageController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSupplementFrequencyDropdown(),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Instructions',
-                        'e.g., Take with food',
-                        controller: _supplementInstructionsController,
-                        maxLines: 3,
-                      ),
-                    ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _buildDialogTextField(
+                                'Supplement Name',
+                                'e.g., Vitamin D3',
+                                controller: _supplementNameController,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: _buildDialogTextField(
+                                'Dosage',
+                                'e.g., 1000 IU',
+                                controller: _supplementDosageController,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSupplementFrequencyDropdown(),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Instructions',
+                          'e.g., Take with food',
+                          controller: _supplementInstructionsController,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Footer
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: const Color(0xFFF8F9FA),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(24),
                       bottomRight: Radius.circular(24),
@@ -1430,32 +1749,66 @@ MedDiet Team
                         ),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 15),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF9E9E9E),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _handleUpdateSupplement(supplement);
-                        },
+                        onPressed: _isAddingSupplement
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                                _handleUpdateSupplement(supplement);
+                              },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
-                            vertical: 12,
+                            vertical: 14,
                           ),
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          elevation: 0,
                         ),
-                        child: const Text(
-                          'Update Supplement',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.blue,
+                                Colors.blue.withValues(alpha: 0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            child: _isAddingSupplement
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Update Supplement',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -1820,13 +2173,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -1884,49 +2237,86 @@ MedDiet Team
                   ),
                 ),
                 // Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildExerciseTypeDropdown(
-                        editingExerciseType: exerciseType,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Exercise Name',
-                        'e.g., Morning Run',
-                        controller: _exerciseNameController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Duration (mins)',
-                        'e.g., 30',
-                        controller: _exerciseDurationController,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Calories Burned',
-                        'e.g., 250',
-                        controller: _exerciseCaloriesController,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Instructions',
-                        'e.g., Run at moderate pace',
-                        controller: _exerciseInstructionsController,
-                        maxLines: 3,
-                      ),
-                    ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _buildExerciseTypeDropdown(
+                                editingExerciseType: exerciseType,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: _buildDialogTextField(
+                                'Exercise Name',
+                                'e.g., Morning Run',
+                                controller: _exerciseNameController,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Duration (mins)',
+                                'e.g., 30',
+                                controller: _exerciseDurationController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Calories Burned',
+                                'e.g., 250',
+                                controller: _exerciseCaloriesController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Time',
+                                'Select time',
+                                controller: _exerciseTimeController,
+                                readOnly: true,
+                                suffixIcon: const Icon(
+                                  Icons.access_time,
+                                  size: 20,
+                                ),
+                                onTap: () => _selectTime(
+                                  context,
+                                  _exerciseTimeController,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Instructions',
+                          'e.g., Run at moderate pace',
+                          controller: _exerciseInstructionsController,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Footer
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: const Color(0xFFF8F9FA),
                     borderRadius: const BorderRadius.only(
                       bottomLeft: Radius.circular(24),
                       bottomRight: Radius.circular(24),
@@ -1945,32 +2335,61 @@ MedDiet Team
                         ),
                         child: const Text(
                           'Cancel',
-                          style: TextStyle(fontSize: 15),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF9E9E9E),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _handleUpdateExercise(exercise);
-                        },
+                        onPressed: _isAddingExercise
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                                _handleUpdateExercise(exercise);
+                              },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.accent,
-                          foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
-                            vertical: 12,
+                            vertical: 14,
                           ),
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          elevation: 0,
                         ),
-                        child: const Text(
-                          'Update Exercise',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: AppColors.accentGradient,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            child: _isAddingExercise
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Update Exercise',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -2496,13 +2915,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -2548,18 +2967,30 @@ MedDiet Team
                   ),
                 ),
                 // Form Content
-                Flexible(
+                Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildMealTypeDropdown(editingMealType: mealType),
-                        const SizedBox(height: 16),
-                        _buildDialogTextField(
-                          'Meal Name',
-                          'e.g., Oats with fruits',
-                          controller: _mealNameController,
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _buildMealTypeDropdown(
+                                editingMealType: mealType,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: _buildDialogTextField(
+                                'Meal Name',
+                                'e.g., Oats with fruits',
+                                controller: _mealNameController,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 16),
                         Row(
@@ -2576,8 +3007,15 @@ MedDiet Team
                             Expanded(
                               child: _buildDialogTextField(
                                 'Time',
-                                'e.g., 08:00',
+                                'Select time',
                                 controller: _mealTimeController,
+                                readOnly: true,
+                                suffixIcon: const Icon(
+                                  Icons.access_time,
+                                  size: 20,
+                                ),
+                                onTap: () =>
+                                    _selectTime(context, _mealTimeController),
                               ),
                             ),
                           ],
@@ -2649,44 +3087,66 @@ MedDiet Team
                           'Cancel',
                           style: TextStyle(
                             fontSize: 14,
+                            fontWeight: FontWeight.w600,
                             color: Color(0xFF9E9E9E),
                           ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _handleUpdateMeal(meal);
-                        },
+                        onPressed: _isAddingMeal
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                                _handleUpdateMeal(meal);
+                              },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
-                            vertical: 12,
+                            vertical: 14,
                           ),
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: _isAddingMeal
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                        child: Ink(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                AppColors.primary,
+                                AppColors.primary.withValues(alpha: 0.8),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            child: _isAddingMeal
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Update Meal',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
                                   ),
-                                ),
-                              )
-                            : const Text(
-                                'Update Meal',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -2718,13 +3178,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -2789,78 +3249,94 @@ MedDiet Team
                   ),
                 ),
                 // Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildMealTypeDropdown(),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Meal Name',
-                        'e.g., Oats with fruits',
-                        controller: _mealNameController,
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDialogTextField(
-                              'Calories',
-                              'e.g., 450',
-                              controller: _mealCaloriesController,
-                              keyboardType: TextInputType.number,
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(flex: 2, child: _buildMealTypeDropdown()),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: _buildDialogTextField(
+                                'Meal Name',
+                                'e.g., Oats with fruits',
+                                controller: _mealNameController,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildDialogTextField(
-                              'Time',
-                              'e.g., 08:00',
-                              controller: _mealTimeController,
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Calories',
+                                'e.g., 450',
+                                controller: _mealCaloriesController,
+                                keyboardType: TextInputType.number,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDialogTextField(
-                              'Protein (g)',
-                              'e.g., 15',
-                              controller: _mealProteinController,
-                              keyboardType: TextInputType.number,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Time',
+                                'Select time',
+                                controller: _mealTimeController,
+                                readOnly: true,
+                                suffixIcon: const Icon(
+                                  Icons.access_time,
+                                  size: 20,
+                                ),
+                                onTap: () =>
+                                    _selectTime(context, _mealTimeController),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildDialogTextField(
-                              'Carbs (g)',
-                              'e.g., 50',
-                              controller: _mealCarbsController,
-                              keyboardType: TextInputType.number,
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Protein (g)',
+                                'e.g., 15',
+                                controller: _mealProteinController,
+                                keyboardType: TextInputType.number,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildDialogTextField(
-                              'Fats (g)',
-                              'e.g., 10',
-                              controller: _mealFatsController,
-                              keyboardType: TextInputType.number,
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Carbs (g)',
+                                'e.g., 50',
+                                controller: _mealCarbsController,
+                                keyboardType: TextInputType.number,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Description',
-                        'Additional details...',
-                        maxLines: 3,
-                        controller: _mealDescriptionController,
-                      ),
-                    ],
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Fats (g)',
+                                'e.g., 10',
+                                controller: _mealFatsController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Description',
+                          'Additional details...',
+                          maxLines: 3,
+                          controller: _mealDescriptionController,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Footer
@@ -2983,13 +3459,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -3047,46 +3523,77 @@ MedDiet Team
                   ),
                 ),
                 // Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildExerciseTypeDropdown(),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Exercise Name',
-                        'e.g., Morning Run',
-                        controller: _exerciseNameController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Duration (mins)',
-                        'e.g., 30',
-                        controller: _exerciseDurationController,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Calories Burned',
-                        'e.g., 250',
-                        controller: _exerciseCaloriesController,
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Time',
-                        'e.g., 06:00 AM',
-                        controller: _exerciseTimeController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Instructions (Optional)',
-                        'Any additional notes?',
-                        controller: _exerciseInstructionsController,
-                        maxLines: 3,
-                      ),
-                    ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _buildExerciseTypeDropdown(),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 3,
+                              child: _buildDialogTextField(
+                                'Exercise Name',
+                                'e.g., Morning Run',
+                                controller: _exerciseNameController,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Duration (mins)',
+                                'e.g., 30',
+                                controller: _exerciseDurationController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Calories Burned',
+                                'e.g., 250',
+                                controller: _exerciseCaloriesController,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildDialogTextField(
+                                'Time',
+                                'Select time',
+                                controller: _exerciseTimeController,
+                                readOnly: true,
+                                suffixIcon: const Icon(
+                                  Icons.access_time,
+                                  size: 20,
+                                ),
+                                onTap: () => _selectTime(
+                                  context,
+                                  _exerciseTimeController,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Instructions (Optional)',
+                          'Any additional notes?',
+                          controller: _exerciseInstructionsController,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Footer
@@ -3146,25 +3653,36 @@ MedDiet Team
                               horizontal: 24,
                               vertical: 12,
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Add Exercise',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                            child: _isAddingExercise
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Add Exercise',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),
@@ -3188,13 +3706,13 @@ MedDiet Team
             borderRadius: BorderRadius.circular(24),
           ),
           child: Container(
-            width: 500,
+            width: 700,
+            height: 600,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header
                 Container(
@@ -3256,28 +3774,41 @@ MedDiet Team
                   ),
                 ),
                 // Body
-                Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSupplementNameField(),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Dosage',
-                        'e.g., 1000 IU',
-                        controller: _supplementDosageController,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildSupplementFrequencyDropdown(),
-                      const SizedBox(height: 16),
-                      _buildDialogTextField(
-                        'Instructions',
-                        'e.g., Take with food',
-                        controller: _supplementInstructionsController,
-                        maxLines: 3,
-                      ),
-                    ],
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: _buildSupplementNameField(),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              flex: 2,
+                              child: _buildDialogTextField(
+                                'Dosage',
+                                'e.g., 1000 IU',
+                                controller: _supplementDosageController,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildSupplementFrequencyDropdown(),
+                        const SizedBox(height: 16),
+                        _buildDialogTextField(
+                          'Instructions',
+                          'e.g., Take with food',
+                          controller: _supplementInstructionsController,
+                          maxLines: 3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Footer
@@ -3312,10 +3843,9 @@ MedDiet Team
                       ),
                       const SizedBox(width: 12),
                       ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _handleAddSupplement();
-                        },
+                        onPressed: _isAddingSupplement
+                            ? null
+                            : _handleAddSupplement,
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 32,
@@ -3342,25 +3872,36 @@ MedDiet Team
                               horizontal: 24,
                               vertical: 12,
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Add Supplement',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                            child: _isAddingSupplement
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                    ),
+                                  )
+                                : const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.check,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Add Supplement',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),
@@ -4212,34 +4753,80 @@ MedDiet Team
     );
   }
 
+  Future<void> _selectTime(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppColors.primary,
+              onPrimary: Colors.white,
+              onSurface: AppColors.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      if (mounted) {
+        setState(() {
+          final now = DateTime.now();
+          final dt = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            picked.hour,
+            picked.minute,
+          );
+          controller.text = DateFormat('HH:mm').format(dt);
+        });
+      }
+    }
+  }
+
   Widget _buildDialogTextField(
     String label,
     String hint, {
     int maxLines = 1,
     TextEditingController? controller,
     TextInputType? keyboardType,
+    bool readOnly = false,
+    VoidCallback? onTap,
+    Widget? suffixIcon,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3142),
+        if (label.isNotEmpty) ...[
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2D3142),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+          const SizedBox(height: 8),
+        ],
         TextField(
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
+          readOnly: readOnly,
+          onTap: onTap,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 14),
             filled: true,
             fillColor: const Color(0xFFF8F9FA),
+            suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
@@ -4916,6 +5503,7 @@ MedDiet Team
                     'kg/m²',
                     Icons.monitor_weight,
                     AppColors.primary,
+                    onTap: () => _showBMIDialog(patient),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -5270,89 +5858,94 @@ MedDiet Team
     String value,
     String subtitle,
     IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.white, color.withValues(alpha: 0.02)],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    Color color, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Colors.white, color.withValues(alpha: 0.02)],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      color.withValues(alpha: 0.15),
-                      color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        color.withValues(alpha: 0.15),
+                        color.withValues(alpha: 0.08),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  child: Icon(icon, color: color, size: 22),
                 ),
-                child: Icon(icon, color: color, size: 22),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF9E9E9E),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF9E9E9E),
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-              letterSpacing: -0.5,
-              height: 1.0,
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: color,
+                letterSpacing: -0.5,
+                height: 1.0,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF9E9E9E),
-              fontWeight: FontWeight.w500,
-              height: 1.2,
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9E9E9E),
+                fontWeight: FontWeight.w500,
+                height: 1.2,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -6636,15 +7229,73 @@ MedDiet Team
   void _clearFollowUpForm() {
     _weightController.clear();
     _sleepController.clear();
-    _exerciseNameController.clear();
     _notesController.clear();
     _cravingsController.clear();
-    _supplementsController.clear();
-    _breakfastController.clear();
-    _lunchController.clear();
-    _dinnerController.clear();
-    _snacksController.clear();
-    _didExercise = false;
+  }
+
+  Future<void> _saveFollowUp(String patientId) async {
+    final weight = double.tryParse(_weightController.text);
+    final sleep = double.tryParse(_sleepController.text);
+    final cravings = _cravingsController.text;
+    final notes = _notesController.text;
+
+    if (weight == null &&
+        sleep == null &&
+        cravings.isEmpty &&
+        notes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter at least one detail')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientFollowups(patientId)}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+        body: jsonEncode({
+          'date': DateTime.now().toIso8601String().split('T')[0],
+          'weight': weight,
+          'sleep_hours': sleep,
+          'cravings': cravings,
+          'notes': notes,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Follow-up recorded successfully'),
+              backgroundColor: AppColors.primary,
+            ),
+          );
+          _fetchPatients();
+        }
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to save follow-up');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _showFollowUpDialog(Map<String, dynamic> patient) {
@@ -6750,200 +7401,12 @@ MedDiet Team
                         ),
                         const SizedBox(height: 20),
 
-                        // Exercise Section with Checkbox
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE5E5E5)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.fitness_center,
-                                    color: AppColors.primary,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Exercise',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF2D3142),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Transform.scale(
-                                    scale: 1.1,
-                                    child: Checkbox(
-                                      value: _didExercise,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _didExercise = value ?? false;
-                                          if (!_didExercise) {
-                                            _exerciseNameController.clear();
-                                          }
-                                        });
-                                      },
-                                      activeColor: AppColors.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ),
-                                  ),
-                                  const Text(
-                                    'Did exercise today?',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF6B7280),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (_didExercise) ...[
-                                const SizedBox(height: 12),
-                                TextField(
-                                  controller: _exerciseNameController,
-                                  decoration: InputDecoration(
-                                    hintText:
-                                        'Enter exercise details (e.g., 30 min walking, yoga, gym)',
-                                    hintStyle: TextStyle(
-                                      color: Colors.grey[400],
-                                      fontSize: 13,
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFE5E5E5),
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                        color: Color(0xFFE5E5E5),
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(
-                                        color: AppColors.primary,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Meals Section
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8F9FA),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE5E5E5)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.restaurant_menu,
-                                    color: AppColors.success,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'Meals Today',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF2D3142),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildMealField(
-                                      label: '🌅 Breakfast',
-                                      controller: _breakfastController,
-                                      hint: 'e.g., Oatmeal, eggs',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildMealField(
-                                      label: '☀️ Lunch',
-                                      controller: _lunchController,
-                                      hint: 'e.g., Salad, grilled chicken',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _buildMealField(
-                                      label: '🌙 Dinner',
-                                      controller: _dinnerController,
-                                      hint: 'e.g., Fish, vegetables',
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: _buildMealField(
-                                      label: '🍎 Snacks',
-                                      controller: _snacksController,
-                                      hint: 'e.g., Fruits, nuts',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Supplements & Cravings Row
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildFollowUpField(
-                                label: 'Supplements Taken',
-                                controller: _supplementsController,
-                                icon: Icons.medication_outlined,
-                                hint: 'e.g., Vitamin D, Omega-3',
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: _buildFollowUpField(
-                                label: 'Any Cravings?',
-                                controller: _cravingsController,
-                                icon: Icons.fastfood_outlined,
-                                hint: 'e.g., Sweets, Salty',
-                              ),
-                            ),
-                          ],
+                        // Cravings
+                        _buildFollowUpField(
+                          label: 'Any Cravings?',
+                          controller: _cravingsController,
+                          icon: Icons.fastfood_outlined,
+                          hint: 'e.g. Sweets, Salty',
                         ),
                         const SizedBox(height: 20),
 
@@ -6995,15 +7458,9 @@ MedDiet Team
                       ),
                       const SizedBox(width: 16),
                       InkWell(
-                        onTap: () {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Follow-up recorded successfully'),
-                              backgroundColor: AppColors.primary,
-                            ),
-                          );
-                        },
+                        onTap: _isLoading
+                            ? null
+                            : () => _saveFollowUp(patient['patient_id']),
                         borderRadius: BorderRadius.circular(12),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -7011,24 +7468,37 @@ MedDiet Team
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            gradient: AppColors.primaryGradient,
+                            gradient: _isLoading
+                                ? null
+                                : AppColors.primaryGradient,
+                            color: _isLoading ? Colors.grey : null,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
-                              BoxShadow(
-                                color: AppColors.primary.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
+                              if (!_isLoading)
+                                BoxShadow(
+                                  color: AppColors.primary.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
                             ],
                           ),
-                          child: const Text(
-                            'Save Follow-up',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Follow-up',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
                         ),
                       ),
                     ],

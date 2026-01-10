@@ -32,5 +32,11 @@ class ApiEndpoints {
   // PUT: /doctor/patient/{id}/weight-target/{targetId}
   static String patientWeightTarget(String patientId) => "/doctor/patient/$patientId/weight-target";
   static String patientWeightTargetUpdate(String patientId, String targetId) => "/doctor/patient/$patientId/weight-target/$targetId";
+
+  // Follow-ups
+  // POST/GET: /doctor/patient/{id}/followups
+  // PUT/DELETE: /doctor/patient/{id}/followups/{followupId}
+  static String patientFollowups(String patientId) => "/doctor/patient/$patientId/followups";
+  static String patientFollowup(String patientId, String followupId) => "/doctor/patient/$patientId/followups/$followupId";
 }
 

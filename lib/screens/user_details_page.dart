@@ -764,7 +764,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: LinearGradient(colors: [color, color.withValues(alpha: 0.7)]),
+              gradient: LinearGradient(
+                colors: [color, color.withValues(alpha: 0.7)],
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: Colors.white, size: 20),
@@ -1025,7 +1027,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
       decoration: BoxDecoration(
         color: const Color(0xFFFF5722).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFFF5722).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFFFF5722).withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [
@@ -1222,7 +1226,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
       decoration: BoxDecoration(
         color: const Color(0xFF9C27B0).withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF9C27B0).withValues(alpha: 0.2)),
+        border: Border.all(
+          color: const Color(0xFF9C27B0).withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [
@@ -1442,6 +1448,58 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     );
   }
 
+  Future<void> _saveFollowup() async {
+    final weight = double.tryParse(_weightController.text);
+    final sleep = double.tryParse(_sleepController.text);
+    final cravings = _cravingsController.text;
+    final notes = _notesController.text;
+
+    if (weight == null &&
+        sleep == null &&
+        cravings.isEmpty &&
+        notes.isEmpty) {
+      _showSnackBar('Please enter at least one detail');
+      return;
+    }
+
+    setState(() => _isLoadingPatient = true);
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientFollowups(widget.patientId)}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+        body: jsonEncode({
+          'date': DateTime.now().toIso8601String().split('T')[0],
+          'weight': weight,
+          'sleep_hours': sleep,
+          'cravings': cravings,
+          'notes': notes,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        _showSnackBar('Follow-up recorded successfully');
+        _weightController.clear();
+        _sleepController.clear();
+        _cravingsController.clear();
+        _notesController.clear();
+        _waterController.clear();
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to save follow-up');
+      }
+    } catch (e) {
+      _showSnackBar('Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingPatient = false);
+      }
+    }
+  }
+
   Widget _buildFollowUpSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1647,9 +1705,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () {
-                _showSnackBar('Follow-up saved successfully!');
-              },
+              onPressed: _isLoadingPatient ? null : _saveFollowup,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
                 foregroundColor: Colors.white,
@@ -1659,10 +1715,19 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Save Follow-up',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child: _isLoadingPatient
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      'Save Follow-up',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
             ),
           ),
         ],
@@ -1735,6 +1800,44 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     _showMealDialog(meal);
   }
 
+  Future<void> _selectTime(
+    BuildContext context,
+    TextEditingController controller,
+  ) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: const Color(0xFF6366F1),
+              onPrimary: Colors.white,
+              onSurface: const Color(0xFF6366F1),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      if (mounted) {
+        setState(() {
+          final now = DateTime.now();
+          final dt = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            picked.hour,
+            picked.minute,
+          );
+          controller.text = DateFormat('HH:mm').format(dt);
+        });
+      }
+    }
+  }
+
   void _showMealDialog(Meal? meal) {
     final isEdit = meal != null;
     final nameController = TextEditingController(text: meal?.mealName ?? '');
@@ -1802,9 +1905,12 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                   Expanded(
                     child: TextField(
                       controller: timeController,
+                      readOnly: true,
+                      onTap: () => _selectTime(context, timeController),
                       decoration: const InputDecoration(
                         labelText: 'Time',
-                        hintText: 'e.g., 08:00',
+                        hintText: 'Select time',
+                        suffixIcon: Icon(Icons.access_time, size: 20),
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -1842,7 +1948,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
 
               try {
                 if (isEdit) {
-                  debugPrint('🍽️ Updating meal: ${meal.id} for patient: ${widget.patientId}');
+                  debugPrint(
+                    '🍽️ Updating meal: ${meal.id} for patient: ${widget.patientId}',
+                  );
                   final response = await PlanService.updateMeal(
                     widget.patientId,
                     meal.id.toString(),
@@ -1857,7 +1965,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                     _showSnackBar(response.message, isError: true);
                   }
                 } else {
-                  debugPrint('🍽️ Adding meal for patient: ${widget.patientId}');
+                  debugPrint(
+                    '🍽️ Adding meal for patient: ${widget.patientId}',
+                  );
                   debugPrint('📝 Meal data: ${newMeal.toJson()}');
                   final response = await PlanService.addMeal(
                     widget.patientId,
@@ -2053,18 +2163,22 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                 // STEP 1: Check if exercises exist using GET API
                 debugPrint('📡 Checking existing exercises for date: $dateStr');
                 final getResponse = await PlanService.getExercises(
-                  widget.patientId, 
+                  widget.patientId,
                   date: dateStr,
                 );
-                
+
                 if (getResponse.success) {
                   final existingExercises = getResponse.data ?? [];
-                  debugPrint('✅ GET API: Found ${existingExercises.length} existing exercises');
-                  
+                  debugPrint(
+                    '✅ GET API: Found ${existingExercises.length} existing exercises',
+                  );
+
                   if (existingExercises.isNotEmpty) {
                     debugPrint('📋 Existing exercises:');
                     for (var ex in existingExercises) {
-                      debugPrint('   - ${ex.exerciseName} (${ex.exerciseType})');
+                      debugPrint(
+                        '   - ${ex.exerciseName} (${ex.exerciseType})',
+                      );
                     }
                   }
                 }
@@ -2399,4 +2513,3 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     );
   }
 }
-
