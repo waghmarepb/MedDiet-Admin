@@ -6257,7 +6257,7 @@ MedDiet Team
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      'Exercise Today',
+                      'Exercise',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -6373,7 +6373,7 @@ MedDiet Team
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Exercise Today',
+                    'Exercise',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -6803,7 +6803,7 @@ MedDiet Team
                     ),
                     const SizedBox(width: 12),
                     const Text(
-                      "Today's Meals",
+                      "Meals",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
