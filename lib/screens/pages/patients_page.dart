@@ -216,7 +216,9 @@ class _PatientsPageState extends State<PatientsPage> {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientMeals(patientId)}?date=$today'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientMeals(patientId)}?date=$today',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${AuthService.token}',
@@ -242,7 +244,9 @@ class _PatientsPageState extends State<PatientsPage> {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientExercises(patientId)}?date=$today'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientExercises(patientId)}?date=$today',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${AuthService.token}',
@@ -267,7 +271,9 @@ class _PatientsPageState extends State<PatientsPage> {
   Future<void> _refreshPatientSupplements(String patientId) async {
     try {
       final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientSupplements(patientId)}'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientSupplements(patientId)}',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${AuthService.token}',
@@ -289,17 +295,18 @@ class _PatientsPageState extends State<PatientsPage> {
   }
 
   /// Smart refresh - only refreshes specific data without full page reload
-  Future<void> _smartRefresh(String patientId, {
+  Future<void> _smartRefresh(
+    String patientId, {
     bool meals = false,
     bool exercises = false,
     bool supplements = false,
   }) async {
     final futures = <Future>[];
-    
+
     if (meals) futures.add(_refreshPatientMeals(patientId));
     if (exercises) futures.add(_refreshPatientExercises(patientId));
     if (supplements) futures.add(_refreshPatientSupplements(patientId));
-    
+
     if (futures.isNotEmpty) {
       await Future.wait(futures);
     }
@@ -2243,6 +2250,164 @@ MedDiet Team
             content: Text('Error: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Delete individual meal
+  Future<void> _deleteMeal(String patientId, dynamic mealId) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Delete Meal'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete this meal? This action cannot be undone.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      debugPrint('🗑️ Deleting meal $mealId for patient $patientId');
+
+      final response = await PlanService.deleteMeal(
+        patientId,
+        mealId.toString(),
+      );
+
+      if (mounted) {
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Meal deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          // Smooth refresh - only meals section
+          await _smartRefresh(patientId, meals: true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete meal: ${response.message}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error deleting meal: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Delete individual exercise
+  Future<void> _deleteExercise(String patientId, dynamic exerciseId) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 12),
+            Text('Delete Exercise'),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete this exercise? This action cannot be undone.',
+          style: TextStyle(fontSize: 15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      debugPrint('🗑️ Deleting exercise $exerciseId for patient $patientId');
+
+      final response = await PlanService.deleteExercise(
+        patientId,
+        exerciseId.toString(),
+      );
+
+      if (mounted) {
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Exercise deleted successfully'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          // Smooth refresh - only exercises section
+          await _smartRefresh(patientId, exercises: true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete exercise: ${response.message}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error deleting exercise: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -6315,6 +6480,9 @@ MedDiet Team
   }
 
   Widget _buildExerciseSection(Map<String, dynamic> patient) {
+    // Get patient ID
+    final patientId = patient['patient_id'] ?? patient['id'];
+    
     // Get exercises from patient data
     final exercises = patient['exercisesToday'] as List? ?? [];
 
@@ -6852,6 +7020,16 @@ MedDiet Team
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => _deleteExercise(patientId, exercise['id']),
+                    icon: const Icon(Icons.delete),
+                    color: Colors.red,
+                    iconSize: 20,
+                    tooltip: 'Delete Exercise',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                 ],
               ),
             );
@@ -6862,6 +7040,9 @@ MedDiet Team
   }
 
   Widget _buildMealsSection(Map<String, dynamic> patient) {
+    // Get patient ID
+    final patientId = patient['patient_id'] ?? patient['id'];
+    
     final meals = patient['mealsToday'] as List? ?? [];
 
     // Handle empty meals list
@@ -7354,6 +7535,16 @@ MedDiet Team
                     color: AppColors.primary,
                     iconSize: 20,
                     tooltip: 'Edit Meal',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => _deleteMeal(patientId, meal['id']),
+                    icon: const Icon(Icons.delete),
+                    color: Colors.red,
+                    iconSize: 20,
+                    tooltip: 'Delete Meal',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
