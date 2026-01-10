@@ -1454,10 +1454,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     final cravings = _cravingsController.text;
     final notes = _notesController.text;
 
-    if (weight == null &&
-        sleep == null &&
-        cravings.isEmpty &&
-        notes.isEmpty) {
+    if (weight == null && sleep == null && cravings.isEmpty && notes.isEmpty) {
       _showSnackBar('Please enter at least one detail');
       return;
     }
@@ -1466,7 +1463,9 @@ class _UserDetailsPageState extends State<UserDetailsPage>
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patientFollowups(widget.patientId)}'),
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientFollowups(widget.patientId)}',
+        ),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${AuthService.token}',
