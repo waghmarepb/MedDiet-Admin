@@ -7336,7 +7336,8 @@ MedDiet Team
   }
 
   Future<List<Map<String, dynamic>>> _fetchFollowUpHistory(
-      String patientId) async {
+    String patientId,
+  ) async {
     try {
       final response = await http.get(
         Uri.parse(
@@ -7443,9 +7444,7 @@ MedDiet Team
                     }
 
                     if (snapshot.hasError) {
-                      return Center(
-                        child: Text('Error: ${snapshot.error}'),
-                      );
+                      return Center(child: Text('Error: ${snapshot.error}'));
                     }
 
                     final followups = snapshot.data ?? [];
@@ -7493,6 +7492,7 @@ MedDiet Team
 
   Widget _buildFollowUpHistoryCard(Map<String, dynamic> followup) {
     final date = followup['date'] ?? '';
+    final createdAt = followup['created_at'] ?? '';
     final weight = followup['weight'];
     final sleepHours = followup['sleep_hours'];
     final cravings = followup['cravings'] ?? '';
@@ -7531,12 +7531,27 @@ MedDiet Team
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                _formatDate(date),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3142),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formatDate(date),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                    if (createdAt.isNotEmpty)
+                      Text(
+                        _formatTime(createdAt),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -7652,6 +7667,19 @@ MedDiet Team
       }
     } catch (e) {
       return dateStr;
+    }
+  }
+
+  String _formatTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      final hour = dateTime.hour;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = hour > 12 ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    } catch (e) {
+      return '';
     }
   }
 
