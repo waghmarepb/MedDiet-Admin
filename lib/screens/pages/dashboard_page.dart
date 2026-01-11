@@ -186,18 +186,12 @@ class _DashboardPageState extends State<DashboardPage>
     super.build(context);
     final doctorName = AuthService.doctorData?['name'] ?? 'Doctor';
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomLeft: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.circular(30),
       ),
       child: ClipRRect(
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          bottomLeft: Radius.circular(30),
-        ),
+        borderRadius: BorderRadius.circular(30),
         child: Column(
           children: [
             // Header at top

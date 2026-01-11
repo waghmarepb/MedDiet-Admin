@@ -131,7 +131,6 @@ class _MainLayoutState extends State<MainLayout> {
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 80,
-      margin: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
@@ -186,7 +185,7 @@ class _MainLayoutState extends State<MainLayout> {
                 // Top Scoop (Page side)
                 Positioned(
                   top: -30,
-                  right: -15,
+                  right: -19,
                   child: SizedBox(
                     width: 30,
                     height: 30,
@@ -214,7 +213,7 @@ class _MainLayoutState extends State<MainLayout> {
                 // Bottom Scoop (Page side)
                 Positioned(
                   bottom: -30,
-                  right: -15,
+                  right: -19,
                   child: SizedBox(
                     width: 30,
                     height: 30,
