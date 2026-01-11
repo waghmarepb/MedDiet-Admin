@@ -8,6 +8,7 @@ class ApiEndpoints {
   static const String patientDetails = "/doctor/patient"; // + /{id}
   static const String patientsStepsToday = "/doctor/patients/steps/today";
   static const String patientSteps = "/doctor/patient"; // + /{id}/steps
+  static String updatePatientProfile(String patientId) => "/doctor/patient/$patientId/profile";
   
   // Plan Management - Meals
   // POST/GET: /doctor/patient/{id}/meals
@@ -38,5 +39,10 @@ class ApiEndpoints {
   // PUT/DELETE: /doctor/patient/{id}/followups/{followupId}
   static String patientFollowups(String patientId) => "/doctor/patient/$patientId/followups";
   static String patientFollowup(String patientId, String followupId) => "/doctor/patient/$patientId/followups/$followupId";
+
+  // Appointments
+  // POST/GET: /doctor/patient/{id}/appointments
+  static String patientAppointments(String patientId) => "/doctor/patient/$patientId/appointments";
+  static const String doctorAppointments = "/doctor/appointments";
 }
 

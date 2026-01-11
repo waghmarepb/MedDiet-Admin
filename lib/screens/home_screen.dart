@@ -10,7 +10,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -34,15 +35,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 child: Row(
                   children: [
                     // Center column - Transactions & Summary (80%)
-                    Expanded(
-                      flex: 8,
-                      child: _buildCenterColumn(),
-                    ),
+                    Expanded(flex: 8, child: _buildCenterColumn()),
                     // Right column - Contacts (20%)
-                    Expanded(
-                      flex: 2,
-                      child: _buildRightSidebar(),
-                    ),
+                    Expanded(flex: 2, child: _buildRightSidebar()),
                   ],
                 ),
               ),
@@ -69,86 +64,52 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ),
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Personal Account',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF2D3142),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down, size: 18),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+              InkWell(
+                onTap: () => MainLayout.openNotifications(context),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E5E5)),
                   ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.credit_card, color: Colors.white, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF2D3142)),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE5E5E5)),
-                ),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Icon(Icons.notifications_outlined, size: 18, color: Color(0xFF2D3142)),
-                    Positioned(
-                      right: -2,
-                      top: -2,
-                      child: Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(
+                        Icons.notifications_outlined,
+                        size: 18,
+                        color: Color(0xFF2D3142),
+                      ),
+                      Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: const Color(0xFFFDB777),
-                child: const Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              InkWell(
+                onTap: () => MainLayout.openProfile(context),
+                child: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFFDB777),
+                  child: const Text(
+                    'M',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
               ),
@@ -229,10 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             children: [
               const Text(
                 'This Week Summary',
-                style: TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
               ),
               const SizedBox(height: 16),
               Row(
@@ -243,7 +201,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       color: const Color(0xFF4CAF50),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.trending_up, color: Colors.white, size: 18),
+                    child: const Icon(
+                      Icons.trending_up,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -263,9 +225,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     ),
                   ),
                   const Spacer(),
-                  _buildSummaryIndicator('24,000', 'INR', Icons.arrow_upward, Colors.green),
+                  _buildSummaryIndicator(
+                    '24,000',
+                    'INR',
+                    Icons.arrow_upward,
+                    Colors.green,
+                  ),
                   const SizedBox(width: 20),
-                  _buildSummaryIndicator('5,324', 'INR', Icons.arrow_downward, Colors.red),
+                  _buildSummaryIndicator(
+                    '5,324',
+                    'INR',
+                    Icons.arrow_downward,
+                    Colors.red,
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -305,7 +277,12 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  Widget _buildSummaryIndicator(String amount, String currency, IconData icon, Color color) {
+  Widget _buildSummaryIndicator(
+    String amount,
+    String currency,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -327,10 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ),
           Text(
             ' $currency',
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFFBDBDBD),
-            ),
+            style: const TextStyle(fontSize: 11, color: Color(0xFFBDBDBD)),
           ),
         ],
       ),
@@ -400,20 +374,28 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             onTap: () {
               Navigator.of(context).push(
                 PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => UserDetailsPage(
-                    patientId: patientId,
-                    userName: title,
-                    userStatus: subtitle,
-                    userLocation: location,
-                  ),
-                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                    const begin = Offset(1.0, 0.0);
-                    const end = Offset.zero;
-                    const curve = Curves.easeInOut;
-                    var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-                    var offsetAnimation = animation.drive(tween);
-                    return SlideTransition(position: offsetAnimation, child: child);
-                  },
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      UserDetailsPage(
+                        patientId: patientId,
+                        userName: title,
+                        userStatus: subtitle,
+                        userLocation: location,
+                      ),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        const begin = Offset(1.0, 0.0);
+                        const end = Offset.zero;
+                        const curve = Curves.easeInOut;
+                        var tween = Tween(
+                          begin: begin,
+                          end: end,
+                        ).chain(CurveTween(curve: curve));
+                        var offsetAnimation = animation.drive(tween);
+                        return SlideTransition(
+                          position: offsetAnimation,
+                          child: child,
+                        );
+                      },
                   transitionDuration: const Duration(milliseconds: 300),
                 ),
               );
@@ -427,7 +409,11 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                 ),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+              child: const Icon(
+                Icons.arrow_forward,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
@@ -454,31 +440,60 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               onPressed: () {},
               child: const Text(
                 'View All',
-                style: TextStyle(
-                  color: Color(0xFF9E9E9E),
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
               ),
             ),
           ],
         ),
         const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(child: _buildSummaryCard('Total Patients', '1,234', 'INR', const Color(0xFF5B4FA3), true)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildSummaryCard('Active Plans', '856', 'INR', const Color(0xFF00BCD4), false)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildSummaryCard('Consultations', '342', 'INR', const Color(0xFF5B4FA3), false, showBars: true)),
-              const SizedBox(width: 16),
-              Expanded(child: _buildPieChartCard()),
-            ],
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: _buildSummaryCard(
+                'Total Patients',
+                '1,234',
+                'INR',
+                const Color(0xFF5B4FA3),
+                true,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Active Plans',
+                '856',
+                'INR',
+                const Color(0xFF00BCD4),
+                false,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _buildSummaryCard(
+                'Consultations',
+                '342',
+                'INR',
+                const Color(0xFF5B4FA3),
+                false,
+                showBars: true,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(child: _buildPieChartCard()),
+          ],
+        ),
       ],
     );
   }
 
-  Widget _buildSummaryCard(String title, String amount, String currency, Color color, bool showAreaChart, {bool showBars = false}) {
+  Widget _buildSummaryCard(
+    String title,
+    String amount,
+    String currency,
+    Color color,
+    bool showAreaChart, {
+    bool showBars = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -494,10 +509,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
               Icon(Icons.trending_up, color: Colors.green, size: 14),
             ],
@@ -513,10 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           ),
           Text(
             currency,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFFBDBDBD),
-            ),
+            style: const TextStyle(fontSize: 11, color: Color(0xFFBDBDBD)),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -527,14 +536,14 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                     painter: AreaChartPainter(color),
                   )
                 : showBars
-                    ? CustomPaint(
-                        size: const Size(double.infinity, 70),
-                        painter: BarChartPainter(color),
-                      )
-                    : CustomPaint(
-                        size: const Size(double.infinity, 70),
-                        painter: LineChartPainter(color),
-                      ),
+                ? CustomPaint(
+                    size: const Size(double.infinity, 70),
+                    painter: BarChartPainter(color),
+                  )
+                : CustomPaint(
+                    size: const Size(double.infinity, 70),
+                    painter: LineChartPainter(color),
+                  ),
           ),
         ],
       ),
@@ -557,10 +566,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             children: [
               const Text(
                 'Graph',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF9E9E9E),
-                ),
+                style: TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
               const Icon(Icons.trending_up, color: Colors.green, size: 14),
             ],
@@ -570,9 +576,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
             child: SizedBox(
               width: 100,
               height: 100,
-              child: CustomPaint(
-                painter: DonutChartPainter(),
-              ),
+              child: CustomPaint(painter: DonutChartPainter()),
             ),
           ),
           const SizedBox(height: 12),
@@ -623,7 +627,10 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
               children: [
                 // Calendar Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       begin: Alignment.topLeft,
@@ -645,14 +652,21 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: DropdownButton<String>(
                           value: 'April',
-                          icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 16),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.white,
+                            size: 16,
+                          ),
                           underline: const SizedBox(),
                           dropdownColor: const Color(0xFF6366F1),
                           isDense: true,
@@ -661,14 +675,26 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                           ),
-                          items: ['January', 'February', 'March', 'April', 'May', 'June', 
-                                  'July', 'August', 'September', 'October', 'November', 'December']
-                              .map((String month) {
-                            return DropdownMenuItem<String>(
-                              value: month,
-                              child: Text(month),
-                            );
-                          }).toList(),
+                          items:
+                              [
+                                'January',
+                                'February',
+                                'March',
+                                'April',
+                                'May',
+                                'June',
+                                'July',
+                                'August',
+                                'September',
+                                'October',
+                                'November',
+                                'December',
+                              ].map((String month) {
+                                return DropdownMenuItem<String>(
+                                  value: month,
+                                  child: Text(month),
+                                );
+                              }).toList(),
                           onChanged: (String? newValue) {},
                         ),
                       ),
@@ -838,10 +864,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           width: 6,
           height: 6,
           margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(
-            color: dotColor,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
         ),
         const SizedBox(width: 10),
         // Title
@@ -914,7 +937,11 @@ class LineChartPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    canvas.drawCircle(Offset(size.width * 0.75, size.height * 0.5), 4, dotPaint);
+    canvas.drawCircle(
+      Offset(size.width * 0.75, size.height * 0.5),
+      4,
+      dotPaint,
+    );
   }
 
   @override
@@ -941,7 +968,10 @@ class BarChartPainter extends CustomPainter {
         Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight),
         const Radius.circular(4),
       );
-      canvas.drawRRect(rect, paint..color = color.withValues(alpha: i % 2 == 0 ? 1.0 : 0.5));
+      canvas.drawRRect(
+        rect,
+        paint..color = color.withValues(alpha: i % 2 == 0 ? 1.0 : 0.5),
+      );
     }
   }
 
@@ -998,4 +1028,3 @@ class DonutChartPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

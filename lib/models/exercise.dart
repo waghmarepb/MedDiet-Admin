@@ -7,6 +7,7 @@ class Exercise {
   final int? caloriesBurn;
   final String? instructions;
   final String? exerciseType;
+  final String? time;
   final String date;
   final bool isCompleted;
   final DateTime? createdAt;
@@ -20,6 +21,7 @@ class Exercise {
     this.caloriesBurn,
     this.instructions,
     this.exerciseType,
+    this.time,
     required this.date,
     this.isCompleted = false,
     this.createdAt,
@@ -35,6 +37,7 @@ class Exercise {
       caloriesBurn: json['calories_burn'] is String ? int.tryParse(json['calories_burn']) : json['calories_burn'],
       instructions: json['instructions'],
       exerciseType: json['exercise_type'],
+      time: json['time'],
       date: json['date'] ?? '',
       isCompleted: json['is_completed'] == 1 || json['is_completed'] == true,
       createdAt: json['created_at'] != null ? DateTime.tryParse(json['created_at']) : null,
@@ -47,10 +50,16 @@ class Exercise {
       if (patientId != null) 'patient_id': patientId,
       if (doctorId != null) 'doctor_id': doctorId,
       'exercise_name': exerciseName,
+      'name': exerciseName, // Alias for UI compatibility
       if (durationMins != null) 'duration_mins': durationMins,
+      if (durationMins != null) 'duration': '$durationMins min', // Formatted duration for UI
       if (caloriesBurn != null) 'calories_burn': caloriesBurn,
+      if (caloriesBurn != null) 'calories': caloriesBurn, // Alias for UI compatibility
+      if (caloriesBurn != null) 'caloriesBurn': caloriesBurn, // Alias for UI compatibility
       if (instructions != null) 'instructions': instructions,
       if (exerciseType != null) 'exercise_type': exerciseType,
+      if (exerciseType != null) 'type': exerciseType, // Alias for UI compatibility
+      if (time != null) 'time': time,
       'date': date,
       'is_completed': isCompleted,
       if (createdAt != null) 'created_at': createdAt?.toIso8601String(),

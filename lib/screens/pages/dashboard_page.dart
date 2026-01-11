@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/services/auth_service.dart';
+import 'package:meddiet/services/analytics_service.dart';
 import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/screens/main_layout.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:math' as math;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,6 +25,7 @@ class _DashboardPageState extends State<DashboardPage>
   // Real data from API
   List<Map<String, dynamic>> _patients = [];
   int _totalPatients = 0;
+  AnalyticsData? _analyticsData;
   bool _isLoading = true;
 
   // Calendar data
@@ -52,14 +54,21 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Future<void> _fetchDashboardData() async {
+    setState(() => _isLoading = true);
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patients}'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${AuthService.token}',
-        },
-      );
+      final results = await Future.wait([
+        http.get(
+          Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.patients}'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${AuthService.token}',
+          },
+        ),
+        AnalyticsService.fetchAnalytics(),
+      ]);
+
+      final response = results[0] as http.Response;
+      final analytics = results[1] as AnalyticsData;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -67,6 +76,7 @@ class _DashboardPageState extends State<DashboardPage>
           setState(() {
             _patients = List<Map<String, dynamic>>.from(data['data']);
             _totalPatients = _patients.length;
+            _analyticsData = analytics;
             _isLoading = false;
           });
         }
@@ -651,7 +661,7 @@ class _DashboardPageState extends State<DashboardPage>
                 title,
                 style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
-              Icon(Icons.trending_up, color: Colors.green, size: 14),
+              const Icon(Icons.trending_up, color: Colors.green, size: 14),
             ],
           ),
           const SizedBox(height: 12),
@@ -670,20 +680,70 @@ class _DashboardPageState extends State<DashboardPage>
           const SizedBox(height: 20),
           SizedBox(
             height: 70,
-            child: showAreaChart
-                ? CustomPaint(
-                    size: const Size(double.infinity, 70),
-                    painter: AreaChartPainter(color),
+            child: _isLoading || _analyticsData == null
+                ? const Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                   )
                 : showBars
-                ? CustomPaint(
-                    size: const Size(double.infinity, 70),
-                    painter: BarChartPainter(color),
-                  )
-                : CustomPaint(
-                    size: const Size(double.infinity, 70),
-                    painter: LineChartPainter(color),
-                  ),
+                ? _buildMiniBarChart(color)
+                : _buildMiniLineChart(color, showAreaChart),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniBarChart(Color color) {
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: 10,
+        barTouchData: BarTouchData(enabled: false),
+        titlesData: const FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
+        borderData: FlBorderData(show: false),
+        barGroups: _analyticsData!.weeklyGrowth.asMap().entries.map((entry) {
+          return BarChartGroupData(
+            x: entry.key,
+            barRods: [
+              BarChartRodData(
+                toY:
+                    entry.value.count.toDouble() +
+                    2, // Ensure some height for visual
+                color: color,
+                width: 4,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildMiniLineChart(Color color, bool isArea) {
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: _analyticsData!.monthlyPatients.asMap().entries.map((entry) {
+              return FlSpot(entry.key.toDouble(), entry.value.count.toDouble());
+            }).toList(),
+            isCurved: true,
+            color: color,
+            barWidth: 2,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: isArea,
+              color: color.withValues(alpha: 0.1),
+            ),
           ),
         ],
       ),
@@ -705,7 +765,7 @@ class _DashboardPageState extends State<DashboardPage>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Graph',
+                'Plans',
                 style: TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
               ),
               const Icon(Icons.trending_up, color: Colors.green, size: 14),
@@ -716,13 +776,40 @@ class _DashboardPageState extends State<DashboardPage>
             child: SizedBox(
               width: 100,
               height: 100,
-              child: CustomPaint(painter: DonutChartPainter()),
+              child: _isLoading || _analyticsData == null
+                  ? const CircularProgressIndicator()
+                  : PieChart(
+                      PieChartData(
+                        sectionsSpace: 0,
+                        centerSpaceRadius: 30,
+                        sections: [
+                          PieChartSectionData(
+                            color: const Color(0xFF5B4FA3),
+                            value: 40,
+                            title: '',
+                            radius: 10,
+                          ),
+                          PieChartSectionData(
+                            color: const Color(0xFF00BCD4),
+                            value: 30,
+                            title: '',
+                            radius: 10,
+                          ),
+                          PieChartSectionData(
+                            color: const Color(0xFF2D3142),
+                            value: 30,
+                            title: '',
+                            radius: 10,
+                          ),
+                        ],
+                      ),
+                    ),
             ),
           ),
           const SizedBox(height: 12),
           const Center(
             child: Text(
-              '35%\nEducation',
+              'User\nDistribution',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
@@ -1041,149 +1128,4 @@ class _DashboardPageState extends State<DashboardPage>
       ],
     );
   }
-}
-
-// Custom Painters
-class AreaChartPainter extends CustomPainter {
-  final Color color;
-  AreaChartPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.3)
-      ..style = PaintingStyle.fill;
-
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
-    path.lineTo(size.width * 0.2, size.height * 0.5);
-    path.lineTo(size.width * 0.4, size.height * 0.3);
-    path.lineTo(size.width * 0.6, size.height * 0.4);
-    path.lineTo(size.width * 0.8, size.height * 0.2);
-    path.lineTo(size.width, size.height * 0.3);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.close();
-
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class LineChartPainter extends CustomPainter {
-  final Color color;
-  LineChartPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
-    path.lineTo(size.width * 0.25, size.height * 0.7);
-    path.lineTo(size.width * 0.5, size.height * 0.4);
-    path.lineTo(size.width * 0.75, size.height * 0.5);
-    path.lineTo(size.width, size.height * 0.3);
-
-    canvas.drawPath(path, paint);
-
-    final dotPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    canvas.drawCircle(
-      Offset(size.width * 0.75, size.height * 0.5),
-      4,
-      dotPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class BarChartPainter extends CustomPainter {
-  final Color color;
-  BarChartPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final barWidth = size.width / 10;
-    final bars = [0.7, 0.5, 0.9, 0.4, 0.6, 0.8, 0.3, 0.7];
-
-    for (int i = 0; i < bars.length; i++) {
-      final x = i * (size.width / bars.length) + barWidth / 2;
-      final barHeight = size.height * bars[i];
-      final rect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(x, size.height - barHeight, barWidth * 0.6, barHeight),
-        const Radius.circular(4),
-      );
-      canvas.drawRRect(
-        rect,
-        paint..color = color.withValues(alpha: i % 2 == 0 ? 1.0 : 0.5),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class DonutChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    final paint1 = Paint()
-      ..color = const Color(0xFF5B4FA3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    final paint2 = Paint()
-      ..color = const Color(0xFF00BCD4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    final paint3 = Paint()
-      ..color = const Color(0xFF2D3142)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 16;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2,
-      math.pi * 0.7,
-      false,
-      paint1,
-    );
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2 + math.pi * 0.7,
-      math.pi * 0.8,
-      false,
-      paint2,
-    );
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius - 8),
-      -math.pi / 2 + math.pi * 1.5,
-      math.pi * 0.5,
-      false,
-      paint3,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -168,6 +168,7 @@ class _PatientsPageState extends State<PatientsPage> {
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     _weightController.dispose();
     _sleepController.dispose();
     _exerciseNameController.dispose();
@@ -228,9 +229,7 @@ class _PatientsPageState extends State<PatientsPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          setState(() {
-            _patientsMealsData[patientId] = data['data'] as List<dynamic>;
-          });
+          _patientsMealsData[patientId] = data['data'] as List<dynamic>;
           debugPrint('✅ Refreshed meals for patient $patientId');
         }
       }
@@ -253,13 +252,16 @@ class _PatientsPageState extends State<PatientsPage> {
         },
       );
 
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          setState(() {
-            _patientsExercisesData[patientId] = data['data'] as List<dynamic>;
-          });
+          _patientsExercisesData[patientId] = data['data'] as List<dynamic>;
           debugPrint('✅ Refreshed exercises for patient $patientId');
+          debugPrint(
+            '📊 Exercise data sample: ${data['data'].isNotEmpty ? data['data'][0] : 'empty'}',
+          );
         }
       }
     } catch (e) {
@@ -283,9 +285,7 @@ class _PatientsPageState extends State<PatientsPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
-          setState(() {
-            _patientsSupplementsData[patientId] = data['data'] as List<dynamic>;
-          });
+          _patientsSupplementsData[patientId] = data['data'] as List<dynamic>;
           debugPrint('✅ Refreshed supplements for patient $patientId');
         }
       }
@@ -301,14 +301,72 @@ class _PatientsPageState extends State<PatientsPage> {
     bool exercises = false,
     bool supplements = false,
   }) async {
-    final futures = <Future>[];
+    try {
+      final futures = <Future>[];
 
-    if (meals) futures.add(_refreshPatientMeals(patientId));
-    if (exercises) futures.add(_refreshPatientExercises(patientId));
-    if (supplements) futures.add(_refreshPatientSupplements(patientId));
+      if (meals) futures.add(_refreshPatientMeals(patientId));
+      if (exercises) futures.add(_refreshPatientExercises(patientId));
+      if (supplements) futures.add(_refreshPatientSupplements(patientId));
 
-    if (futures.isNotEmpty) {
+      if (futures.isEmpty) return;
+
+      // Wait for all data to be fetched
       await Future.wait(futures);
+
+      if (!mounted) return;
+
+      // Update the patient data with extreme safety
+      try {
+        setState(() {
+          for (int i = 0; i < _apiPatients.length; i++) {
+            if (_apiPatients[i]['patient_id'] == patientId ||
+                _apiPatients[i]['id'] == patientId) {
+              try {
+                // Only proceed if we can successfully map the data
+                final updatedPatient = _mapPatientData(_apiPatients[i]);
+
+                // Ensure the updated data is valid before applying
+                if (updatedPatient.isNotEmpty) {
+                  // Surgically update sections
+                  if (meals) {
+                    _apiPatients[i]['mealsToday'] =
+                        updatedPatient['mealsToday'] ?? [];
+                    _apiPatients[i]['caloriesIntake'] =
+                        updatedPatient['caloriesIntake'] ?? 0;
+                  }
+                  if (exercises) {
+                    _apiPatients[i]['exercisesToday'] =
+                        updatedPatient['exercisesToday'] ?? [];
+                    _apiPatients[i]['exerciseMinutes'] =
+                        updatedPatient['exerciseMinutes'] ?? 0;
+                  }
+                  if (supplements) {
+                    _apiPatients[i]['supplementsToday'] =
+                        updatedPatient['supplementsToday'] ?? [];
+                  }
+                  debugPrint('✅ Successfully updated patient data at index $i');
+                } else {
+                  debugPrint(
+                    '⚠️ Updated patient data is empty, skipping update',
+                  );
+                }
+              } catch (mapError, stackTrace) {
+                debugPrint('❌ Error mapping patient data: $mapError');
+                debugPrint('Stack trace: $stackTrace');
+                // Don't break the whole update if one patient fails
+              }
+              break;
+            }
+          }
+        });
+        debugPrint('✅ Smart refresh completed for patient $patientId');
+      } catch (innerError, stackTrace) {
+        debugPrint('❌ UI update failed during refresh: $innerError');
+        debugPrint('Stack trace: $stackTrace');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error in _smartRefresh: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
   }
 
@@ -638,22 +696,30 @@ class _PatientsPageState extends State<PatientsPage> {
 
     // Get meals data for this patient and transform to UI format
     final mealsData = _patientsMealsData[patientId] ?? [];
-    final mealsToday = mealsData.map((meal) {
-      return {
-        'id': meal['id'],
-        'meal_name': meal['meal_name'] ?? 'Unknown Meal',
-        'name': meal['meal_name'] ?? 'Unknown Meal',
-        'time': meal['time'] ?? 'N/A',
-        'calories': _parseInt(meal['calories']),
-        'meal_type': meal['meal_type'] ?? 'other',
-        'type': meal['meal_type'] ?? 'other',
-        'description': meal['description'],
-        'protein': meal['protein'],
-        'carbs': meal['carbs'],
-        'fats': meal['fats'],
-        'is_completed': meal['is_completed'] ?? false,
-      };
-    }).toList();
+    final List<Map<String, dynamic>> mealsToday = [];
+
+    for (var meal in mealsData) {
+      try {
+        mealsToday.add({
+          'id': meal['id'],
+          'meal_name': meal['meal_name'] ?? meal['name'] ?? 'Unknown Meal',
+          'name': meal['meal_name'] ?? meal['name'] ?? 'Unknown Meal',
+          'time': meal['time'] ?? '08:00',
+          'calories': _parseInt(meal['calories']),
+          'raw_calories': _parseInt(meal['calories']),
+          'meal_type': meal['meal_type'] ?? meal['type'] ?? 'other',
+          'type': meal['meal_type'] ?? meal['type'] ?? 'other',
+          'description': meal['description'],
+          'protein': meal['protein'],
+          'carbs': meal['carbs'],
+          'fats': meal['fats'],
+          'is_completed':
+              meal['is_completed'] == true || meal['is_completed'] == 1,
+        });
+      } catch (e) {
+        debugPrint('⚠️ Error mapping meal data: $e');
+      }
+    }
 
     // Calculate total calories from meals
     int totalCalories = 0;
@@ -663,22 +729,57 @@ class _PatientsPageState extends State<PatientsPage> {
 
     // Get exercises data for this patient and transform to UI format
     final exercisesData = _patientsExercisesData[patientId] ?? [];
-    final exercisesToday = exercisesData.map((exercise) {
-      final durationMins = _parseInt(exercise['duration_mins']);
-      return {
-        'id': exercise['id'],
-        'exercise_name': exercise['exercise_name'] ?? 'Unknown Exercise',
-        'name': exercise['exercise_name'] ?? 'Unknown Exercise',
-        'exercise_type': exercise['exercise_type'] ?? 'other',
-        'type': exercise['exercise_type'] ?? 'other',
-        'duration': '$durationMins min',
-        'time': exercise['time'] ?? 'Not specified',
-        'calories': _parseInt(exercise['calories_burn']),
-        'caloriesBurn': _parseInt(exercise['calories_burn']),
-        'instructions': exercise['instructions'],
-        'is_completed': exercise['is_completed'] ?? false,
-      };
-    }).toList();
+    final List<Map<String, dynamic>> exercisesToday = [];
+
+    for (var exercise in exercisesData) {
+      try {
+        final durationMins = _parseInt(exercise['duration_mins']);
+        final rawTime = exercise['time'];
+
+        // Debug: Log the raw exercise data
+        debugPrint(
+          '📋 Exercise data: id=${exercise['id']}, name=${exercise['exercise_name']}, duration_mins=${exercise['duration_mins']}, parsed=$durationMins, time=$rawTime',
+        );
+
+        // Fallback: if time is missing from API, use a default
+        String displayTime = '08:00';
+        if (rawTime != null && rawTime.toString().isNotEmpty) {
+          displayTime = rawTime.toString();
+        }
+
+        // Ensure duration is always a valid string
+        final durationString = durationMins > 0 ? '$durationMins min' : 'N/A';
+
+        exercisesToday.add({
+          'id': exercise['id'],
+          'exercise_name':
+              exercise['exercise_name'] ??
+              exercise['name'] ??
+              'Unknown Exercise',
+          'name':
+              exercise['exercise_name'] ??
+              exercise['name'] ??
+              'Unknown Exercise',
+          'exercise_type': exercise['exercise_type'] ?? 'other',
+          'type': exercise['exercise_type'] ?? 'other',
+          'duration': durationString,
+          'duration_mins': durationMins,
+          'time': displayTime,
+          'calories': _parseInt(exercise['calories_burn']),
+          'caloriesBurn': _parseInt(exercise['calories_burn']),
+          'instructions': exercise['instructions'],
+          'is_completed':
+              exercise['is_completed'] == true || exercise['is_completed'] == 1,
+        });
+
+        debugPrint(
+          '✅ Mapped exercise: ${exercisesToday.last['name']} - ${exercisesToday.last['duration']}',
+        );
+      } catch (e) {
+        debugPrint('⚠️ Error mapping exercise data: $e');
+        debugPrint('⚠️ Problematic exercise: $exercise');
+      }
+    }
 
     // Calculate total exercise minutes
     int totalExerciseMinutes = 0;
@@ -1032,6 +1133,30 @@ MedDiet Team
     }
   }
 
+  String _convertExerciseTypeToDisplay(String apiType) {
+    switch (apiType.toLowerCase()) {
+      case 'cardio':
+        return 'Cardio';
+      case 'strength':
+        return 'Strength';
+      case 'flexibility':
+        return 'Flexibility';
+      case 'yoga':
+        return 'Yoga';
+      case 'sports':
+        return 'Sports';
+      case 'walking':
+        return 'Walking';
+      case 'running':
+        return 'Running';
+      default:
+        // Capitalize first letter
+        return apiType.isNotEmpty
+            ? apiType[0].toUpperCase() + apiType.substring(1)
+            : apiType;
+    }
+  }
+
   // Get color for meal type
   Color _getMealTypeColor(String apiType) {
     switch (apiType) {
@@ -1102,26 +1227,6 @@ MedDiet Team
         .toSet();
   }
 
-  // Get color for exercise type
-  Color _getExerciseTypeColor(String? type) {
-    switch (type?.toLowerCase()) {
-      case 'cardio':
-        return Colors.red;
-      case 'strength':
-        return Colors.blue;
-      case 'flexibility':
-        return Colors.purple;
-      case 'balance':
-        return Colors.teal;
-      case 'walking':
-        return Colors.green;
-      case 'yoga':
-        return Colors.pink;
-      default:
-        return Colors.grey;
-    }
-  }
-
   // Get icon for exercise type
   IconData _getExerciseTypeIcon(String? type) {
     switch (type?.toLowerCase()) {
@@ -1160,33 +1265,6 @@ MedDiet Team
               (supplement['supplement_name'] as String?)?.toLowerCase() ?? '',
         )
         .toSet();
-  }
-
-  // Get color for supplement (based on name patterns or default)
-  Color _getSupplementColor(String name) {
-    final lowerName = name.toLowerCase();
-    if (lowerName.contains('vitamin')) return Colors.orange;
-    if (lowerName.contains('protein')) return Colors.blue;
-    if (lowerName.contains('omega') || lowerName.contains('fish oil'))
-      return Colors.teal;
-    if (lowerName.contains('calcium')) return Colors.purple;
-    if (lowerName.contains('iron')) return Colors.red;
-    if (lowerName.contains('magnesium')) return Colors.green;
-    return Colors.indigo;
-  }
-
-  // Get icon for supplement
-  IconData _getSupplementIcon(String name) {
-    final lowerName = name.toLowerCase();
-    if (lowerName.contains('vitamin')) return Icons.water_drop;
-    if (lowerName.contains('protein')) return Icons.fitness_center;
-    if (lowerName.contains('omega') || lowerName.contains('fish oil')) {
-      return Icons.set_meal;
-    }
-    if (lowerName.contains('calcium') || lowerName.contains('bone')) {
-      return Icons.healing;
-    }
-    return Icons.medication;
   }
 
   /// Handle adding a new exercise
@@ -1265,6 +1343,9 @@ MedDiet Team
         instructions: _exerciseInstructionsController.text.trim().isNotEmpty
             ? _exerciseInstructionsController.text.trim()
             : null,
+        time: _exerciseTimeController.text.trim().isNotEmpty
+            ? _exerciseTimeController.text.trim()
+            : null,
         date: today,
       );
 
@@ -1284,7 +1365,10 @@ MedDiet Team
 
         // Refresh only exercises for this patient (smooth update)
         debugPrint('🔄 Refreshing exercises for patient $patientId...');
-        await _smartRefresh(patientId, exercises: true);
+        _smartRefresh(
+          patientId,
+          exercises: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to add exercise: ${response.message}');
         if (mounted) {
@@ -1366,7 +1450,10 @@ MedDiet Team
 
         // Refresh only supplements for this patient (smooth update)
         debugPrint('🔄 Refreshing supplements for patient $patientId...');
-        await _smartRefresh(patientId, supplements: true);
+        _smartRefresh(
+          patientId,
+          supplements: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to add supplement: ${response.message}');
         if (mounted) {
@@ -1982,7 +2069,10 @@ MedDiet Team
           );
         }
         // Refresh only supplements for this patient (smooth update)
-        await _smartRefresh(patientId, supplements: true);
+        _smartRefresh(
+          patientId,
+          supplements: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to update supplement: ${response.message}');
         if (mounted) {
@@ -2062,7 +2152,10 @@ MedDiet Team
           );
         }
         // Refresh only supplements for this patient (smooth update)
-        await _smartRefresh(patientId, supplements: true);
+        _smartRefresh(
+          patientId,
+          supplements: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to delete supplement: ${response.message}');
         if (mounted) {
@@ -2239,7 +2332,10 @@ MedDiet Team
 
       // Refresh only exercises for this patient (smooth update)
       debugPrint('🔄 Refreshing exercises for patient $patientId...');
-      await _smartRefresh(patientId, exercises: true);
+      _smartRefresh(
+        patientId,
+        exercises: true,
+      ).then((_) => debugPrint("✅ Refresh completed"));
     } catch (e, stackTrace) {
       debugPrint('❌ EXCEPTION in _handleDeleteAllExercises: $e');
       debugPrint('Stack trace: $stackTrace');
@@ -2310,7 +2406,10 @@ MedDiet Team
             ),
           );
           // Smooth refresh - only meals section
-          await _smartRefresh(patientId, meals: true);
+          _smartRefresh(
+            patientId,
+            meals: true,
+          ).then((_) => debugPrint("✅ Refresh completed"));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -2389,7 +2488,10 @@ MedDiet Team
             ),
           );
           // Smooth refresh - only exercises section
-          await _smartRefresh(patientId, exercises: true);
+          _smartRefresh(
+            patientId,
+            exercises: true,
+          ).then((_) => debugPrint("✅ Refresh completed"));
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -2419,10 +2521,25 @@ MedDiet Team
     // Populate form with exercise data
     _exerciseNameController.text =
         exercise['exercise_name'] ?? exercise['name'] ?? '';
-    _exerciseDurationController.text =
-        exercise['duration']?.toString().replaceAll(' min', '') ?? '';
+
+    // Use raw duration_mins if available, otherwise fallback to parsing display string
+    if (exercise.containsKey('duration_mins') &&
+        exercise['duration_mins'] != null) {
+      _exerciseDurationController.text = exercise['duration_mins'].toString();
+    } else {
+      _exerciseDurationController.text =
+          exercise['duration']?.toString().replaceAll(' min', '') ?? '';
+    }
+
     _exerciseCaloriesController.text = exercise['calories']?.toString() ?? '';
     _exerciseInstructionsController.text = exercise['instructions'] ?? '';
+
+    // Improved time population: Handle null, 'N/A', or 'Not specified'
+    final rawTime = exercise['time'];
+    _exerciseTimeController.text =
+        (rawTime == null || rawTime == 'N/A' || rawTime == 'Not specified')
+        ? ''
+        : rawTime.toString();
 
     final exerciseType = exercise['type'] ?? 'cardio';
     setState(() => selectedExerciseType = exerciseType);
@@ -2691,8 +2808,17 @@ MedDiet Team
       return;
     }
 
+    if (!mounted) return;
+    setState(() => _isAddingExercise = true);
+
     try {
-      final patient = patients[selectedPatientIndex];
+      final patientList = patients;
+      if (selectedPatientIndex < 0 ||
+          selectedPatientIndex >= patientList.length) {
+        throw 'Invalid patient selection';
+      }
+
+      final patient = patientList[selectedPatientIndex];
       final patientId = patient['patient_id'] ?? patient['id'];
       final exerciseId = oldExercise['id'];
 
@@ -2712,6 +2838,9 @@ MedDiet Team
         instructions: _exerciseInstructionsController.text.trim().isNotEmpty
             ? _exerciseInstructionsController.text.trim()
             : null,
+        time: _exerciseTimeController.text.trim().isNotEmpty
+            ? _exerciseTimeController.text.trim()
+            : null,
         date: DateFormat('yyyy-MM-dd').format(DateTime.now()),
       );
 
@@ -2723,17 +2852,28 @@ MedDiet Team
 
       if (response.success) {
         debugPrint('✅ Exercise updated successfully');
+
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(context); // Close dialog
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Exercise updated successfully'),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
             ),
           );
         }
+
         // Refresh only exercises for this patient (smooth update)
-        await _smartRefresh(patientId, exercises: true);
+        // Run in background without blocking UI
+        // Add a small delay to ensure dialog is fully closed
+        debugPrint('🔄 Refreshing exercises for patient $patientId...');
+        await Future.delayed(const Duration(milliseconds: 300));
+
+        if (mounted) {
+          await _smartRefresh(patientId, exercises: true);
+          debugPrint('✅ Exercise refresh completed');
+        }
       } else {
         debugPrint('❌ Failed to update exercise: ${response.message}');
         if (mounted) {
@@ -2752,6 +2892,10 @@ MedDiet Team
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingExercise = false);
       }
     }
   }
@@ -2781,10 +2925,17 @@ MedDiet Team
       return;
     }
 
+    if (!mounted) return;
     setState(() => _isAddingMeal = true);
 
     try {
-      final patient = patients[selectedPatientIndex];
+      final patientList = patients;
+      if (selectedPatientIndex < 0 ||
+          selectedPatientIndex >= patientList.length) {
+        throw 'Invalid patient selection';
+      }
+
+      final patient = patientList[selectedPatientIndex];
       final patientId = patient['patient_id'] ?? patient['id'];
 
       // Get meal ID - check if it's already in oldMeal or find it from cache
@@ -2820,16 +2971,17 @@ MedDiet Team
           debugPrint(
             '   Available meals: ${mealsData.map((m) => '${m['meal_name']} (${m['meal_type']})').join(', ')}',
           );
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Error: Could not find meal to update. Try refreshing the patient list.',
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Error: Could not find meal to update. Try refreshing the patient list.',
+                ),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 4),
               ),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 4),
-            ),
-          );
-          setState(() => _isAddingMeal = false);
+            );
+          }
           return;
         }
 
@@ -2875,6 +3027,7 @@ MedDiet Team
         debugPrint('✅ Meal updated successfully via API');
 
         if (mounted) {
+          Navigator.pop(context); // Close dialog
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(response.message),
@@ -2883,9 +3036,15 @@ MedDiet Team
           );
         }
 
-        // Refresh only meals for this patient (smooth update)
+        // Refresh only meals for this patient (non-blocking)
         debugPrint('🔄 Refreshing meals for patient $patientId...');
-        await _smartRefresh(patientId, meals: true);
+        _smartRefresh(patientId, meals: true)
+            .then((_) {
+              debugPrint('✅ Meal refresh completed');
+            })
+            .catchError((e) {
+              debugPrint('❌ Error refreshing meals: $e');
+            });
       } else {
         debugPrint('❌ Failed to update meal: ${response.message}');
         if (mounted) {
@@ -3003,7 +3162,10 @@ MedDiet Team
 
         // Refresh only meals for this patient (smooth update)
         debugPrint('🔄 Refreshing meals for patient $patientId...');
-        await _smartRefresh(patientId, meals: true);
+        _smartRefresh(
+          patientId,
+          meals: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to add meal: ${response.message}');
         if (mounted) {
@@ -3128,7 +3290,10 @@ MedDiet Team
 
         // Refresh only meals for this patient (smooth update)
         debugPrint('🔄 Refreshing meals for patient $patientId...');
-        await _smartRefresh(patientId, meals: true);
+        _smartRefresh(
+          patientId,
+          meals: true,
+        ).then((_) => debugPrint("✅ Refresh completed"));
       } else {
         debugPrint('❌ Failed to delete meals: ${response.message}');
 
@@ -3161,8 +3326,11 @@ MedDiet Team
   void _showEditMealDialog(Map<String, dynamic> meal) {
     // Populate form with meal data
     _mealNameController.text = meal['name'] ?? meal['meal_name'] ?? '';
-    _mealCaloriesController.text = meal['calories']?.toString() ?? '';
-    _mealTimeController.text = meal['time'] ?? '';
+    _mealCaloriesController.text =
+        (meal['raw_calories'] ?? meal['calories'])?.toString() ?? '';
+    _mealTimeController.text = (meal['time'] == 'N/A')
+        ? ''
+        : (meal['time'] ?? '');
     _mealDescriptionController.text = meal['description'] ?? '';
     _mealProteinController.text = meal['protein']?.toString() ?? '';
     _mealCarbsController.text = meal['carbs']?.toString() ?? '';
@@ -5718,94 +5886,127 @@ MedDiet Team
   }
 
   Widget _buildPatientDetails() {
-    final patient = selectedPatient;
+    try {
+      final patient = selectedPatient;
 
-    // Handle empty patients list
-    if (patient == null) {
+      // Handle empty patients list
+      if (patient == null) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No patients found',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Patients registered with your referral code will appear here',
+                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Patient Header
+            _buildPatientHeader(patient),
+            const SizedBox(height: 30),
+
+            // Health Metrics Grid - 4 Cards
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      'BMI',
+                      patient['bmi'].toString(),
+                      'kg/m²',
+                      Icons.monitor_weight,
+                      AppColors.primary,
+                      onTap: () => _showBMIDialog(patient),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      'Weight',
+                      '${patient['weight']} kg',
+                      'Target: ${patient['targetWeight']} kg',
+                      Icons.scale,
+                      AppColors.accent,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildStepsCard(patient)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildCaloriesCard(patient)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Meals Today
+            _buildMealsSection(patient),
+            const SizedBox(height: 24),
+
+            // Exercise Today
+            _buildExerciseSection(patient),
+            const SizedBox(height: 24),
+
+            // Supplements
+            _buildSupplementsSection(patient),
+            const SizedBox(height: 24),
+
+            // Weight Progress Chart
+            _buildWeightProgressCard(patient),
+          ],
+        ),
+      );
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error rendering patient details: $e');
+      debugPrint('Stack trace: $stackTrace');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text(
-              'No patients found',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
+            const Text(
+              'Error displaying patient details',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             Text(
-              'Patients registered with your referral code will appear here',
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              'Error: $e',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  // Force a rebuild
+                });
+              },
+              child: const Text('Retry'),
             ),
           ],
         ),
       );
     }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(30, 20, 30, 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Patient Header
-          _buildPatientHeader(patient),
-          const SizedBox(height: 30),
-
-          // Health Metrics Grid - 4 Cards
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    'BMI',
-                    patient['bmi'].toString(),
-                    'kg/m²',
-                    Icons.monitor_weight,
-                    AppColors.primary,
-                    onTap: () => _showBMIDialog(patient),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    'Weight',
-                    '${patient['weight']} kg',
-                    'Target: ${patient['targetWeight']} kg',
-                    Icons.scale,
-                    AppColors.accent,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: _buildStepsCard(patient)),
-                const SizedBox(width: 12),
-                Expanded(child: _buildCaloriesCard(patient)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Meals Today
-          _buildMealsSection(patient),
-          const SizedBox(height: 24),
-
-          // Exercise Today
-          _buildExerciseSection(patient),
-          const SizedBox(height: 24),
-
-          // Supplements
-          _buildSupplementsSection(patient),
-          const SizedBox(height: 24),
-
-          // Weight Progress Chart
-          _buildWeightProgressCard(patient),
-        ],
-      ),
-    );
   }
 
   /// Get initials from patient name (e.g., "Sagar Kumbhar" -> "SK")
@@ -6008,11 +6209,93 @@ MedDiet Team
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'History',
+                              'Flow Up History',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.deepPurple,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      onTap: () => _showBookAppointmentDialog(patient),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.calendar_month,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Book Appointment',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    InkWell(
+                      onTap: () => _showAppointmentHistoryDialog(patient),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.event_note,
+                              color: AppColors.primary,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Appointment History',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
                               ),
                             ),
                           ],
@@ -6067,56 +6350,6 @@ MedDiet Team
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.access_time,
-                          color: Colors.white70,
-                          size: 12,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Last: ${patient['lastVisit']}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.event, color: Colors.white, size: 12),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Next: ${patient['nextAppointment']}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -6482,7 +6715,7 @@ MedDiet Team
   Widget _buildExerciseSection(Map<String, dynamic> patient) {
     // Get patient ID
     final patientId = patient['patient_id'] ?? patient['id'];
-    
+
     // Get exercises from patient data
     final exercises = patient['exercisesToday'] as List? ?? [];
 
@@ -6777,6 +7010,12 @@ MedDiet Team
           ),
           const SizedBox(height: 20),
           ...exercises.map((exercise) {
+            final exerciseType =
+                exercise['exercise_type'] ?? exercise['type'] ?? 'cardio';
+            final exerciseTypeDisplay = _convertExerciseTypeToDisplay(
+              exerciseType,
+            );
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
@@ -6800,9 +7039,9 @@ MedDiet Team
                 children: [
                   Container(
                     width: 5,
-                    height: 50,
+                    height: 60,
                     decoration: BoxDecoration(
-                      gradient: AppColors.accentGradient,
+                      color: AppColors.accent,
                       borderRadius: BorderRadius.circular(3),
                       boxShadow: [
                         BoxShadow(
@@ -6817,12 +7056,16 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      gradient: AppColors.accentGradient,
+                      color: AppColors.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.3),
+                        width: 1,
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.fitness_center,
-                      color: Colors.white,
+                      color: AppColors.accent,
                       size: 20,
                     ),
                   ),
@@ -6831,20 +7074,21 @@ MedDiet Team
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          exercise['exercise_name'] ??
+                              exercise['name'] ??
+                              'Exercise',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3142),
+                            letterSpacing: 0.2,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            Text(
-                              exercise['exercise_name'] ??
-                                  exercise['name'] ??
-                                  'Exercise',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2D3142),
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 8,
@@ -6853,13 +7097,17 @@ MedDiet Team
                               decoration: BoxDecoration(
                                 color: AppColors.accent.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: AppColors.accent.withValues(
+                                    alpha: 0.3,
+                                  ),
+                                  width: 1,
+                                ),
                               ),
                               child: Text(
-                                exercise['exercise_type'] ??
-                                    exercise['type'] ??
-                                    'cardio',
+                                exerciseTypeDisplay,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.accent,
                                 ),
@@ -6922,37 +7170,33 @@ MedDiet Team
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
+                            const SizedBox(width: 8),
+                            Icon(
                               Icons.access_time,
                               size: 14,
-                              color: Color(0xFF9E9E9E),
+                              color: Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              exercise['time'] ?? 'N/A',
-                              style: const TextStyle(
+                              exercise['time'] ?? '08:00',
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF9E9E9E),
+                                color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Icon(
+                            const SizedBox(width: 8),
+                            Icon(
                               Icons.timer,
                               size: 14,
-                              color: Color(0xFF9E9E9E),
+                              color: Colors.grey[600],
                             ),
                             const SizedBox(width: 4),
                             Text(
                               exercise['duration'] ?? 'N/A',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF9E9E9E),
+                                color: Colors.grey[600],
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -7042,7 +7286,7 @@ MedDiet Team
   Widget _buildMealsSection(Map<String, dynamic> patient) {
     // Get patient ID
     final patientId = patient['patient_id'] ?? patient['id'];
-    
+
     final meals = patient['mealsToday'] as List? ?? [];
 
     // Handle empty meals list
@@ -7309,7 +7553,7 @@ MedDiet Team
           ),
           const SizedBox(height: 20),
           ...meals.map((meal) {
-            final mealType = meal['type'] ?? 'breakfast';
+            final mealType = meal['meal_type'] ?? meal['type'] ?? 'breakfast';
             final mealTypeColor = _getMealTypeColor(mealType);
             final mealTypeIcon = _getMealTypeIcon(mealType);
             final mealTypeDisplay = _convertMealTypeToDisplay(mealType);
@@ -7376,6 +7620,7 @@ MedDiet Team
                             color: Color(0xFF2D3142),
                             letterSpacing: 0.2,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 6),
                         Row(
@@ -8287,6 +8532,620 @@ MedDiet Team
     );
   }
 
+  Future<void> _saveAppointment(
+    String patientId,
+    DateTime date,
+    TimeOfDay time,
+    String description,
+  ) async {
+    try {
+      setState(() => _isLoading = true);
+
+      final String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+      final String formattedTime =
+          "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:00";
+
+      final response = await http.post(
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientAppointments(patientId)}',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+        body: jsonEncode({
+          'appointment_date': formattedDate,
+          'appointment_time': formattedTime,
+          'description': description,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Appointment booked successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['message'] ?? 'Failed to book appointment');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _showBookAppointmentDialog(Map<String, dynamic> patient) {
+    DateTime selectedDate = DateTime.now();
+    TimeOfDay selectedTime = TimeOfDay.now();
+    final descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 800,
+            height: 600,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [AppColors.primary, AppColors.primaryLight],
+                    ),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.calendar_month,
+                          color: Colors.white,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Book Appointment',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            patient['name'] ?? 'Patient',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                // Body
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Appointment Details',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDialogField(
+                                label: 'Select Date',
+                                icon: Icons.calendar_today,
+                                value: DateFormat(
+                                  'MMM dd, yyyy',
+                                ).format(selectedDate),
+                                onTap: () async {
+                                  final DateTime? picked = await showDatePicker(
+                                    context: context,
+                                    initialDate: selectedDate,
+                                    firstDate: DateTime.now(),
+                                    lastDate: DateTime(2101),
+                                  );
+                                  if (picked != null &&
+                                      picked != selectedDate) {
+                                    setState(() {
+                                      selectedDate = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: _buildDialogField(
+                                label: 'Select Time',
+                                icon: Icons.access_time,
+                                value: selectedTime.format(context),
+                                onTap: () async {
+                                  final TimeOfDay? picked =
+                                      await showTimePicker(
+                                        context: context,
+                                        initialTime: selectedTime,
+                                      );
+                                  if (picked != null &&
+                                      picked != selectedTime) {
+                                    setState(() {
+                                      selectedTime = picked;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Description',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: descriptionController,
+                          maxLines: 5,
+                          decoration: InputDecoration(
+                            hintText: 'Enter appointment details...',
+                            filled: true,
+                            fillColor: Colors.grey.shade50,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Footer
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(24),
+                      bottomRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.grey.shade600),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await _saveAppointment(
+                            patient['patient_id'],
+                            selectedDate,
+                            selectedTime,
+                            descriptionController.text,
+                          );
+                          if (mounted) Navigator.pop(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Book Now',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchAppointmentHistory(
+    String patientId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}${ApiEndpoints.patientAppointments(patientId)}',
+        ),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          return List<Map<String, dynamic>>.from(data['data']);
+        }
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching appointment history: $e');
+      return [];
+    }
+  }
+
+  void _showAppointmentHistoryDialog(Map<String, dynamic> patient) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          width: 800,
+          height: 600,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.primary, AppColors.primaryLight],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.event_note,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Appointment History',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        Text(
+                          patient['name'] ?? 'Patient',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              // Body
+              Expanded(
+                child: FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _fetchAppointmentHistory(patient['patient_id']),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Error: ${snapshot.error}'));
+                    }
+
+                    final appointments = snapshot.data ?? [];
+
+                    if (appointments.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.event_busy,
+                              size: 64,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No appointment history found',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey.shade400,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      padding: const EdgeInsets.all(24),
+                      itemCount: appointments.length,
+                      itemBuilder: (context, index) {
+                        final apt = appointments[index];
+                        return _buildAppointmentHistoryCard(apt);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAppointmentHistoryCard(Map<String, dynamic> apt) {
+    final DateTime date = DateTime.parse(apt['appointment_date']);
+    final String status = apt['status'] ?? 'pending';
+
+    Color statusColor;
+    switch (status.toLowerCase()) {
+      case 'confirmed':
+        statusColor = Colors.green;
+        break;
+      case 'completed':
+        statusColor = Colors.blue;
+        break;
+      case 'cancelled':
+        statusColor = Colors.red;
+        break;
+      default:
+        statusColor = Colors.orange;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.calendar_today,
+                      color: AppColors.primary,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    DateFormat('MMM dd, yyyy').format(date),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Text(
+                apt['appointment_time'] ?? '',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey.shade600,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          if (apt['description'] != null &&
+              apt['description'].toString().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              apt['description'],
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade800),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDialogField({
+    required String label,
+    required IconData icon,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: AppColors.primary),
+                const SizedBox(width: 12),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildSupplementsSection(Map<String, dynamic> patient) {
     // Get supplements from patient data
     final supplements = patient['supplementsToday'] as List? ?? [];
@@ -8602,6 +9461,7 @@ MedDiet Team
                                   color: Color(0xFF2D3142),
                                   letterSpacing: 0.2,
                                 ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             if (supplement['dosage'] != null &&
@@ -8719,6 +9579,7 @@ MedDiet Team
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
+                  const SizedBox(width: 4),
                   IconButton(
                     onPressed: () => _confirmDeleteSupplement(supplement),
                     icon: const Icon(Icons.delete),
