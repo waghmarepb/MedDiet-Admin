@@ -3,6 +3,7 @@ import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/services/auth_service.dart';
+import 'package:meddiet/widgets/common_header.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -132,7 +133,51 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
         borderRadius: BorderRadius.circular(30),
         child: Column(
           children: [
-            _buildHeader(),
+            CommonHeader(
+              title: 'Appointments',
+              action: Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _refreshData,
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: const Text('Refresh'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.textPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 15,
+                      ),
+                      side: BorderSide(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                    label: const Text(
+                      'New Appointment',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 15,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -149,7 +194,13 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                   children: [
                                     Expanded(
                                       flex: 7,
-                                      child: _buildCalendarCard(),
+                                      child: Column(
+                                        children: [
+                                          _buildCalendarCard(),
+                                          const SizedBox(height: 32),
+                                          _buildInsightsCard(),
+                                        ],
+                                      ),
                                     ),
                                     const SizedBox(width: 32),
                                     Expanded(
@@ -162,6 +213,8 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                                 Column(
                                   children: [
                                     _buildCalendarCard(),
+                                    const SizedBox(height: 32),
+                                    _buildInsightsCard(),
                                     const SizedBox(height: 32),
                                     _buildScheduleCard(),
                                   ],
@@ -178,123 +231,25 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(40, 32, 40, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Admin',
-                    style: TextStyle(color: AppColors.textGrey, fontSize: 13),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: AppColors.textGrey,
-                  ),
-                  Text(
-                    'Appointments',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Appointments',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Manage and track patient consultations.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: _refreshData,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Refresh'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textPrimary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 15,
-                  ),
-                  side: const BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add, color: Colors.white, size: 18),
-                label: const Text(
-                  'New Appointment',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 15,
-                  ),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCalendarCard() {
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: AppColors.primary.withValues(alpha: 0.04),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         children: [
           _buildCalendarHeader(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
           _buildCalendarGrid(),
         ],
       ),
@@ -352,16 +307,20 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
   }
 
   Widget _buildIconButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
+            borderRadius: BorderRadius.circular(10),
+            color: AppColors.primary.withValues(alpha: 0.02),
+          ),
+          child: Icon(icon, size: 20, color: AppColors.primary),
         ),
-        child: Icon(icon, size: 22, color: AppColors.textPrimary),
       ),
     );
   }
@@ -378,33 +337,39 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
     return Column(
       children: [
         Row(
-          children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((
-            day,
-          ) {
-            return Expanded(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    day.toUpperCase(),
-                    style: TextStyle(
-                      color: AppColors.textGrey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                      letterSpacing: 1.0,
+          children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+              .asMap()
+              .entries
+              .map((entry) {
+                final day = entry.value;
+                final isSunday = entry.key == 0;
+                return Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 24),
+                      child: Text(
+                        day.toUpperCase(),
+                        style: TextStyle(
+                          color: isSunday
+                              ? Colors.red.withValues(alpha: 0.8)
+                              : AppColors.textGrey.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                );
+              })
+              .toList(),
         ),
         ...List.generate((daysInMonth + firstDayOfMonth + 6) ~/ 7, (weekIndex) {
           return Row(
             children: List.generate(7, (dayIndex) {
               final dayNumber = weekIndex * 7 + dayIndex - firstDayOfMonth + 1;
               if (dayNumber < 1 || dayNumber > daysInMonth) {
-                return const Expanded(child: SizedBox(height: 70));
+                return const Expanded(child: SizedBox(height: 75));
               }
 
               final date = DateTime(
@@ -418,74 +383,69 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
               final hasAppointments = _liveAppointments.containsKey(dateStr);
 
               return Expanded(
-                child: InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedDate = date;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    height: 70,
-                    margin: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : isToday
-                          ? AppColors.primary.withValues(alpha: 0.05)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      border: isSelected
-                          ? null
-                          : isToday
-                          ? Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                            )
-                          : Border.all(
-                              color: hasAppointments
-                                  ? AppColors.primary.withValues(alpha: 0.15)
-                                  : Colors.transparent,
-                            ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Center(
-                          child: Text(
-                            '$dayNumber',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: isSelected || isToday
-                                  ? FontWeight.bold
-                                  : FontWeight.w500,
-                              color: isSelected
-                                  ? Colors.white
-                                  : isToday
-                                  ? AppColors.primary
-                                  : AppColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                        if (hasAppointments && !isSelected)
-                          Positioned(
-                            bottom: 10,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: Container(
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: isToday
-                                      ? AppColors.primary
-                                      : AppColors.primary.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                  shape: BoxShape.circle,
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedDate = date;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    hoverColor: AppColors.primary.withValues(alpha: 0.05),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : isToday
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        border: !isSelected && isToday
+                            ? Border.all(color: AppColors.primary, width: 2)
+                            : null,
+                      ),
+                      child: Stack(
+                        children: [
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$dayNumber',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: isSelected || isToday
+                                        ? FontWeight.bold
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : isToday
+                                        ? AppColors.primary
+                                        : (date.weekday == DateTime.sunday
+                                              ? Colors.red
+                                              : AppColors.textPrimary),
+                                  ),
                                 ),
-                              ),
+                                if (hasAppointments)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 2),
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -506,7 +466,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -537,7 +497,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   DateFormat('MMM d').format(_selectedDate),
@@ -555,6 +517,104 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             _buildEmptyState()
           else
             ...appointments.map((apt) => _buildAppointmentCard(apt)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightsCard() {
+    final dayOfWeek = DateFormat('EEEE').format(_selectedDate);
+
+    // Positive health/productivity tips
+    final insights = {
+      'Monday':
+          'A healthy outside starts from the inside. Plan your meals for a balanced week.',
+      'Tuesday':
+          'Stay hydrated! Drinking water boosts energy and focus for your appointments.',
+      'Wednesday':
+          'Halfway through! Take a short walk to keep your metabolism active.',
+      'Thursday':
+          'Consistency is key. Small healthy habits today lead to big results tomorrow.',
+      'Friday':
+          'Focus on progress, not perfection. You\'re doing great with your patients.',
+      'Saturday':
+          'Rest and recover. A calm mind is a productive mind for the coming week.',
+      'Sunday':
+          'Self-care is not selfish. Rejuvenate today for a successful Monday.',
+    };
+
+    final message =
+        insights[dayOfWeek] ?? 'Believe in yourself and your impact on others.';
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withValues(alpha: 0.05),
+            AppColors.primary.withValues(alpha: 0.15),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Daily Insight for $dayOfWeek',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary.withValues(alpha: 0.7),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF2D3142),
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -604,7 +664,7 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -691,7 +751,9 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
                 bottomRight: Radius.circular(20),
               ),
               border: Border(
-                top: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+                top: BorderSide(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                ),
               ),
             ),
             child: Row(

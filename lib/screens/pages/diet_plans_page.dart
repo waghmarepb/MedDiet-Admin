@@ -14,75 +14,8 @@ class _DietPlansPageState extends State<DietPlansPage> {
   String _selectedFilter = 'All';
   final List<String> filters = ['All', 'Active', 'Inactive', 'Archived'];
 
-  // Sample diet plans data with realistic images
-  final List<Map<String, dynamic>> dietPlans = [
-    {
-      'name': 'Mediterranean Diet',
-      'duration': '45 days',
-      'patients': 124,
-      'status': 'Active',
-      'color': const Color(0xFF4DB8A8),
-      'icon': Icons.local_dining,
-      'description': 'Heart-healthy fats and fresh produce',
-      'image': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.9,
-    },
-    {
-      'name': 'Keto Program',
-      'duration': '30 days',
-      'patients': 85,
-      'status': 'Active',
-      'color': const Color(0xFF6366F1),
-      'icon': Icons.restaurant_menu,
-      'description': 'High-fat, low-carb metabolic focus',
-      'image': 'https://images.unsplash.com/photo-1535914223966-332635772213?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.7,
-    },
-    {
-      'name': 'Plant-Based Vegan',
-      'duration': '60 days',
-      'patients': 62,
-      'status': 'Active',
-      'color': const Color(0xFF10B981),
-      'icon': Icons.eco,
-      'description': '100% plant-powered nutrition',
-      'image': 'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.8,
-    },
-    {
-      'name': 'DASH Diet',
-      'duration': '90 days',
-      'patients': 142,
-      'status': 'Active',
-      'color': const Color(0xFF06B6D4),
-      'icon': Icons.favorite,
-      'description': 'Stop hypertension with smart eating',
-      'image': 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.9,
-    },
-    {
-      'name': 'Intermittent Fasting',
-      'duration': '21 days',
-      'patients': 210,
-      'status': 'Active',
-      'color': const Color(0xFFF59E0B),
-      'icon': Icons.timer,
-      'description': 'Time-restricted feeding patterns',
-      'image': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.6,
-    },
-    {
-      'name': 'Paleo Lifestyle',
-      'duration': '30 days',
-      'patients': 45,
-      'status': 'Inactive',
-      'color': const Color(0xFF8B5CF6),
-      'icon': Icons.history,
-      'description': 'Whole foods based on ancestral diet',
-      'image': 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?q=80&w=400&auto=format&fit=crop',
-      'rating': 4.5,
-    },
-  ];
+  // Sample diet plans data - emptied to show no data available
+  final List<Map<String, dynamic>> dietPlans = [];
 
   @override
   Widget build(BuildContext context) {
@@ -150,42 +83,83 @@ class _DietPlansPageState extends State<DietPlansPage> {
                 ],
               ),
             ),
-            // Table view of plans
+            // Table view of plans or No Data view
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Showing ${filteredPlans.length} plan${filteredPlans.length != 1 ? 's' : ''}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
+              child: filteredPlans.isEmpty
+                  ? _buildNoDataView()
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Showing ${filteredPlans.length} plan${filteredPlans.length != 1 ? 's' : ''}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Table Header
+                          _buildTableHeader(),
+                          const SizedBox(height: 12),
+                          // Table Body - List of plans
+                          ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: filteredPlans.length,
+                            separatorBuilder: (context, index) => Divider(
+                              color: AppColors.border,
+                              height: 1,
+                            ),
+                            itemBuilder: (context, index) {
+                              return _buildTableRow(context, filteredPlans[index], index);
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    // Table Header
-                    _buildTableHeader(),
-                    const SizedBox(height: 12),
-                    // Table Body - List of plans
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: filteredPlans.length,
-                      separatorBuilder: (context, index) => Divider(
-                        color: AppColors.border,
-                        height: 1,
-                      ),
-                      itemBuilder: (context, index) {
-                        return _buildTableRow(context, filteredPlans[index], index);
-                      },
-                    ),
-                  ],
-                ),
-              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildNoDataView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.restaurant_menu_rounded,
+              size: 80,
+              color: AppColors.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Diet Plans Available',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create a new plan to get started',
+            style: TextStyle(
+              fontSize: 16,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

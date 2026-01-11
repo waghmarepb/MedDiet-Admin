@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/services/analytics_service.dart';
+import 'package:meddiet/widgets/common_header.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
@@ -57,7 +58,27 @@ class _ReportsPageState extends State<ReportsPage> {
         borderRadius: BorderRadius.circular(30),
         child: Column(
           children: [
-            _buildCustomHeader(),
+            CommonHeader(
+              title: 'Analytics Dashboard',
+              action: ElevatedButton.icon(
+                onPressed: _loadData,
+                icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
+                label: const Text(
+                  'Refresh Data',
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 15,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
@@ -67,73 +88,6 @@ class _ReportsPageState extends State<ReportsPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCustomHeader() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(40, 30, 40, 20),
-      color: AppColors.background,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Admin',
-                    style: TextStyle(color: AppColors.textGrey, fontSize: 13),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: AppColors.textGrey,
-                  ),
-                  Text(
-                    'Analytics',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Analytics Dashboard',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Real-time data from your patient database.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-              ),
-            ],
-          ),
-          ElevatedButton.icon(
-            onPressed: _loadData,
-            icon: const Icon(Icons.refresh, size: 18, color: Colors.white),
-            label: const Text(
-              'Refresh Data',
-              style: TextStyle(color: Colors.white),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -181,31 +135,31 @@ class _ReportsPageState extends State<ReportsPage> {
               const SizedBox(width: 20),
               Expanded(
                 child: _buildStatCard(
-                  'Total Revenue',
-                  '₹${NumberFormat('#,##,###').format(_analyticsData!.totalRevenue)}',
-                  'Estimated',
+                  'Meal Compliance',
+                  '${_analyticsData!.mealCompliance.toStringAsFixed(0)}%',
+                  'Last 30 Days',
                   AppColors.success,
-                  Icons.account_balance_wallet_rounded,
+                  Icons.restaurant_rounded,
                 ),
               ),
               const SizedBox(width: 20),
               Expanded(
                 child: _buildStatCard(
-                  'Avg. Value',
-                  '₹${NumberFormat('#,##,###').format(_analyticsData!.avgRevenue)}',
-                  'Per Patient',
+                  'Exercise Compliance',
+                  '${_analyticsData!.exerciseCompliance.toStringAsFixed(0)}%',
+                  'Last 30 Days',
                   AppColors.accent,
-                  Icons.analytics_rounded,
+                  Icons.fitness_center_rounded,
                 ),
               ),
               const SizedBox(width: 20),
               Expanded(
                 child: _buildStatCard(
-                  'Active Plans',
-                  '${_analyticsData!.totalPatients}',
-                  '100% Enrollment',
+                  'Avg. Compliance',
+                  '${_analyticsData!.avgCompliance.toStringAsFixed(0)}%',
+                  'Overall Score',
                   AppColors.info,
-                  Icons.assignment_turned_in_rounded,
+                  Icons.favorite_rounded,
                 ),
               ),
             ],
@@ -231,8 +185,8 @@ class _ReportsPageState extends State<ReportsPage> {
             children: [
               Expanded(
                 child: _buildBreakdownCard(
-                  'Enrollment by Plan',
-                  'Distribution across diet plans.',
+                  'Patient Progress',
+                  'Distribution by goal category.',
                   _analyticsData!.planBreakdown,
                   AppColors.primary,
                 ),
@@ -279,7 +233,7 @@ class _ReportsPageState extends State<ReportsPage> {
             offset: const Offset(0, 10),
           ),
         ],
-        border: Border.all(color: themeColor.withValues(alpha: 0.1)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -337,7 +291,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -359,7 +313,7 @@ class _ReportsPageState extends State<ReportsPage> {
                         ),
                         const SizedBox(width: 8),
                         const Text(
-                          'This month at a glance',
+                          'Compliance Trend',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
@@ -370,7 +324,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Total revenue and patient activity',
+                      'Patient activity and plan adherence',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -381,19 +335,16 @@ class _ReportsPageState extends State<ReportsPage> {
                 Row(
                   children: [
                     _buildTopStat(
-                      'Total',
-                      '₹${NumberFormat('#,##,###').format(_analyticsData!.totalRevenue)}',
+                      'Avg Score',
+                      '${_analyticsData!.avgCompliance.toStringAsFixed(1)}%',
                     ),
                     Container(
                       width: 1,
                       height: 30,
-                      color: AppColors.border,
+                      color: AppColors.primary.withValues(alpha: 0.2),
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                     ),
-                    _buildTopStat(
-                      'Patients',
-                      '${_analyticsData!.totalPatients}',
-                    ),
+                    _buildTopStat('Target', '90.0%'),
                   ],
                 ),
               ],
@@ -508,7 +459,9 @@ class _ReportsPageState extends State<ReportsPage> {
                       horizontal: 12,
                       vertical: 6,
                     ),
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -551,7 +504,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,7 +605,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -748,7 +701,7 @@ class _ReportsPageState extends State<ReportsPage> {
       decoration: BoxDecoration(
         color: AppColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

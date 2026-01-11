@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:meddiet/screens/user_details_page.dart';
 import 'package:meddiet/screens/main_layout.dart';
+import 'package:meddiet/constants/api_config.dart';
+import 'package:meddiet/constants/api_endpoints.dart';
+import 'package:meddiet/services/auth_service.dart';
+import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +20,134 @@ class _HomeScreenState extends State<HomeScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
+
+  // API data for appointments
+  DateTime _selectedDate = DateTime.now();
+  DateTime _focusedMonth = DateTime.now();
+  bool _isLoadingAppointments = true;
+  Map<String, List<Map<String, dynamic>>> _appointments = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchAppointments();
+  }
+
+  Future<void> _fetchAppointments() async {
+    try {
+      if (!mounted) return;
+      setState(() => _isLoadingAppointments = true);
+
+      debugPrint('🔄 Fetching appointments from API...');
+      debugPrint(
+        '📍 API URL: ${ApiConfig.baseUrl}${ApiEndpoints.doctorAppointments}',
+      );
+
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.doctorAppointments}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      debugPrint('📦 Response Status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        debugPrint('✅ API Response: ${data['success']}');
+        debugPrint('📊 Data count: ${data['data']?.length ?? 0}');
+
+        if (data['success'] == true && data['data'] != null) {
+          final List appointments = data['data'];
+          final Map<String, List<Map<String, dynamic>>> grouped = {};
+
+          for (var apt in appointments) {
+            String dateKey = '';
+            if (apt['appointment_date'] != null) {
+              DateTime date = DateTime.parse(
+                apt['appointment_date'].toString(),
+              );
+              dateKey = DateFormat('yyyy-MM-dd').format(date);
+            }
+
+            if (dateKey.isNotEmpty) {
+              if (!grouped.containsKey(dateKey)) {
+                grouped[dateKey] = [];
+              }
+
+              // Format time
+              String formattedTime = apt['appointment_time']?.toString() ?? '';
+              try {
+                if (formattedTime.isNotEmpty) {
+                  final parts = formattedTime.split(':');
+                  if (parts.length >= 2) {
+                    int hour = int.parse(parts[0]);
+                    int minute = int.parse(parts[1]);
+                    final period = hour >= 12 ? 'pm' : 'am';
+                    final displayHour = hour > 12
+                        ? hour - 12
+                        : (hour == 0 ? 12 : hour);
+                    formattedTime =
+                        '$displayHour:${minute.toString().padLeft(2, '0')} $period';
+                  }
+                }
+              } catch (e) {
+                debugPrint('⚠️ Error formatting time: $e');
+              }
+
+              grouped[dateKey]!.add({
+                'time': formattedTime,
+                'title':
+                    (apt['description'] != null &&
+                        apt['description'].toString().isNotEmpty)
+                    ? apt['description'].toString()
+                    : 'Consultation with ${apt['patient_name']?.toString() ?? 'Patient'}',
+                'patient': apt['patient_name']?.toString() ?? 'Patient',
+                'status': apt['status']?.toString() ?? 'pending',
+              });
+            }
+          }
+
+          debugPrint(
+            '📅 Grouped appointments by date: ${grouped.keys.length} dates',
+          );
+          for (var key in grouped.keys) {
+            debugPrint('  - $key: ${grouped[key]!.length} appointments');
+          }
+
+          if (mounted) {
+            setState(() {
+              _appointments = grouped;
+              _isLoadingAppointments = false;
+            });
+            debugPrint('✅ Appointments loaded successfully!');
+          }
+        } else {
+          debugPrint('⚠️ No appointments data in response');
+          if (mounted) {
+            setState(() {
+              _appointments = {};
+              _isLoadingAppointments = false;
+            });
+          }
+        }
+      } else {
+        debugPrint('❌ API Error: Status ${response.statusCode}');
+        debugPrint('Response body: ${response.body}');
+        throw Exception('Failed to load appointments: ${response.statusCode}');
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error fetching appointments: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _appointments = {};
+          _isLoadingAppointments = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,40 +198,41 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           Row(
             children: [
-              InkWell(
-                onTap: () => MainLayout.openNotifications(context),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.notifications_outlined,
-                        size: 18,
-                        color: Color(0xFF2D3142),
-                      ),
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              // Notification button hidden as per requirement
+              // InkWell(
+              //   onTap: () => MainLayout.openNotifications(context),
+              //   child: Container(
+              //     padding: const EdgeInsets.all(10),
+              //     decoration: BoxDecoration(
+              //       color: Colors.white,
+              //       borderRadius: BorderRadius.circular(12),
+              //       border: Border.all(color: const Color(0xFFE5E5E5)),
+              //     ),
+              //     child: Stack(
+              //       clipBehavior: Clip.none,
+              //       children: [
+              //         const Icon(
+              //           Icons.notifications_outlined,
+              //           size: 18,
+              //           color: Color(0xFF2D3142),
+              //         ),
+              //         Positioned(
+              //           right: -2,
+              //           top: -2,
+              //           child: Container(
+              //             width: 8,
+              //             height: 8,
+              //             decoration: const BoxDecoration(
+              //               color: Colors.red,
+              //               shape: BoxShape.circle,
+              //             ),
+              //           ),
+              //         ),
+              //       ],
+              //     ),
+              //   ),
+              // ),
+              // const SizedBox(width: 12),
               InkWell(
                 onTap: () => MainLayout.openProfile(context),
                 child: CircleAvatar(
@@ -651,52 +786,68 @@ class _HomeScreenState extends State<HomeScreen>
                           letterSpacing: 1.5,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButton<String>(
-                          value: 'April',
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.white,
-                            size: 16,
+                      Row(
+                        children: [
+                          Text(
+                            DateFormat('MMMM yyyy').format(_focusedMonth),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                          underline: const SizedBox(),
-                          dropdownColor: const Color(0xFF6366F1),
-                          isDense: true,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.chevron_left,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _focusedMonth = DateTime(
+                                        _focusedMonth.year,
+                                        _focusedMonth.month - 1,
+                                      );
+                                    });
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.chevron_right,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 24,
+                                    minHeight: 24,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _focusedMonth = DateTime(
+                                        _focusedMonth.year,
+                                        _focusedMonth.month + 1,
+                                      );
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
-                          items:
-                              [
-                                'January',
-                                'February',
-                                'March',
-                                'April',
-                                'May',
-                                'June',
-                                'July',
-                                'August',
-                                'September',
-                                'October',
-                                'November',
-                                'December',
-                              ].map((String month) {
-                                return DropdownMenuItem<String>(
-                                  value: month,
-                                  child: Text(month),
-                                );
-                              }).toList(),
-                          onChanged: (String? newValue) {},
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -719,20 +870,12 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Calendar Days Row
+                // Calendar Days Row - Show current week
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildCalendarDay('12', false),
-                      _buildCalendarDay('13', true),
-                      _buildCalendarDay('14', false),
-                      _buildCalendarDay('15', false),
-                      _buildCalendarDay('16', false),
-                      _buildCalendarDay('17', false),
-                      _buildCalendarDay('18', false),
-                    ],
+                    children: _buildWeekDays(),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -741,7 +884,7 @@ class _HomeScreenState extends State<HomeScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'APRIL, 13',
+                      DateFormat('MMMM, d').format(_selectedDate).toUpperCase(),
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -762,34 +905,9 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 20),
                 // Appointments List
                 Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _buildAppointmentItem(
-                        '2:00 pm',
-                        'Meeting with chief physician Dr. Williams',
-                        const Color(0xFFEC4899),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '2:30 pm',
-                        'Consultation with Mr. White',
-                        const Color(0xFF8B5CF6),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:00 pm',
-                        'Consultation with Mrs. Maisey',
-                        const Color(0xFF10B981),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:50 pm',
-                        'Examination of Mrs. Lee\'s freckle',
-                        const Color(0xFF8B5CF6),
-                      ),
-                    ],
-                  ),
+                  child: _isLoadingAppointments
+                      ? const Center(child: CircularProgressIndicator())
+                      : _buildAppointmentsList(),
                 ),
               ],
             ),
@@ -809,34 +927,6 @@ class _HomeScreenState extends State<HomeScreen>
           fontSize: 10,
           fontWeight: FontWeight.w500,
           color: Colors.grey[500],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCalendarDay(String day, bool isSelected) {
-    return Container(
-      width: 30,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: isSelected
-            ? const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              )
-            : null,
-        color: isSelected ? null : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Text(
-          day,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF374151),
-          ),
         ),
       ),
     );
@@ -880,6 +970,171 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ],
+    );
+  }
+
+  /// Build week days dynamically based on focused month
+  List<Widget> _buildWeekDays() {
+    // Get the current week - Sunday to Saturday
+    DateTime today = DateTime.now();
+
+    // Calculate the start of the current week (Sunday)
+    int daysToSubtract = today.weekday % 7; // Sunday = 0, Monday = 1, etc.
+    DateTime startOfWeek = today.subtract(Duration(days: daysToSubtract));
+
+    // Normalize to start of day
+    startOfWeek = DateTime(
+      startOfWeek.year,
+      startOfWeek.month,
+      startOfWeek.day,
+    );
+
+    debugPrint(
+      '📅 Building week: ${DateFormat('MMM d').format(startOfWeek)} - ${DateFormat('MMM d').format(startOfWeek.add(const Duration(days: 6)))}',
+    );
+
+    List<Widget> weekDays = [];
+    for (int i = 0; i < 7; i++) {
+      DateTime date = startOfWeek.add(Duration(days: i));
+      bool isSelected = DateUtils.isSameDay(date, _selectedDate);
+      weekDays.add(_buildCalendarDay(date, isSelected));
+    }
+    return weekDays;
+  }
+
+  /// Updated calendar day widget to accept DateTime
+  Widget _buildCalendarDay(DateTime date, bool isSelected) {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final hasAppointments = _appointments.containsKey(dateStr);
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: InkWell(
+          onTap: () {
+            debugPrint('🖱️ Calendar day clicked: $dateStr');
+            debugPrint(
+              '📅 Previous selected: ${DateFormat('yyyy-MM-dd').format(_selectedDate)}',
+            );
+            setState(() {
+              _selectedDate = date;
+            });
+            debugPrint('✅ New selected date: $dateStr');
+          },
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 40,
+            decoration: BoxDecoration(
+              gradient: isSelected
+                  ? const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    )
+                  : null,
+              color: isSelected ? null : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Stack(
+              children: [
+                Center(
+                  child: Text(
+                    '${date.day}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFF374151),
+                    ),
+                  ),
+                ),
+                if (hasAppointments && !isSelected)
+                  Positioned(
+                    bottom: 4,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: 4,
+                        height: 4,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF6366F1),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build appointments list for selected date
+  Widget _buildAppointmentsList() {
+    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDate);
+    final appointments = _appointments[dateStr] ?? [];
+
+    debugPrint('📅 Building appointments list for: $dateStr');
+    debugPrint('📊 Total appointments for this date: ${appointments.length}');
+    debugPrint('📚 All available dates: ${_appointments.keys.toList()}');
+
+    if (appointments.isEmpty) {
+      debugPrint('⚠️ No appointments found for $dateStr');
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 40,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No appointments',
+              style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Selected: $dateStr',
+              style: TextStyle(fontSize: 10, color: Colors.grey[300]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    debugPrint('✅ Displaying ${appointments.length} appointments');
+    for (var apt in appointments) {
+      debugPrint('  - ${apt['time']}: ${apt['title']}');
+    }
+
+    // Define color palette for appointments
+    final colors = [
+      const Color(0xFFEC4899), // Pink
+      const Color(0xFF8B5CF6), // Purple
+      const Color(0xFF10B981), // Green
+      const Color(0xFF3B82F6), // Blue
+      const Color(0xFFF59E0B), // Orange
+    ];
+
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: appointments.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final apt = appointments[index];
+        final color = colors[index % colors.length];
+        return _buildAppointmentItem(
+          apt['time'] ?? '',
+          apt['title'] ?? 'Consultation',
+          color,
+        );
+      },
     );
   }
 }

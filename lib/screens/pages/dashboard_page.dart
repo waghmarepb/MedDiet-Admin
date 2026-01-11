@@ -3,7 +3,9 @@ import 'package:meddiet/services/auth_service.dart';
 import 'package:meddiet/services/analytics_service.dart';
 import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
-import 'package:meddiet/screens/main_layout.dart';
+import 'package:meddiet/constants/app_colors.dart';
+// import 'package:meddiet/screens/main_layout.dart'; // Unused after hiding notifications
+import 'package:meddiet/widgets/common_header.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -24,9 +26,11 @@ class _DashboardPageState extends State<DashboardPage>
 
   // Real data from API
   List<Map<String, dynamic>> _patients = [];
+  List<Map<String, dynamic>> _appointments = [];
   int _totalPatients = 0;
   AnalyticsData? _analyticsData;
   bool _isLoading = true;
+  bool _isLoadingAppointments = true;
 
   // Calendar data
   late DateTime _selectedDate;
@@ -40,6 +44,7 @@ class _DashboardPageState extends State<DashboardPage>
     _currentMonth = DateTime.now();
     _generateWeekDays();
     _fetchDashboardData();
+    _fetchAppointments();
   }
 
   /// Generate the current week days for calendar display
@@ -51,6 +56,62 @@ class _DashboardPageState extends State<DashboardPage>
       7,
       (index) => startOfWeek.add(Duration(days: index)),
     );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF6366F1),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF2D3142),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _currentMonth = picked;
+        _generateWeekDays();
+      });
+    }
+  }
+
+  Future<void> _fetchAppointments() async {
+    setState(() => _isLoadingAppointments = true);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}${ApiEndpoints.doctorAppointments}'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${AuthService.token}',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          setState(() {
+            _appointments = List<Map<String, dynamic>>.from(data['data']);
+            _isLoadingAppointments = false;
+          });
+        }
+      } else {
+        setState(() => _isLoadingAppointments = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching appointments: $e');
+      setState(() => _isLoadingAppointments = false);
+    }
   }
 
   Future<void> _fetchDashboardData() async {
@@ -123,6 +184,7 @@ class _DashboardPageState extends State<DashboardPage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final doctorName = AuthService.doctorData?['name'] ?? 'Doctor';
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -133,13 +195,22 @@ class _DashboardPageState extends State<DashboardPage>
         child: Column(
           children: [
             // Header at top
-            _buildHeader(),
+            CommonHeader(
+              title: '${_getGreeting()} $doctorName!',
+              showAvatar: true,
+            ),
             // Main content area with 2 columns
             Expanded(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Center column - Transactions & Summary (80%)
                   Expanded(flex: 8, child: _buildCenterColumn()),
+                  // Divider line
+                  Container(
+                    width: 1,
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
                   // Right column - Contacts (20%)
                   Expanded(flex: 2, child: _buildRightSidebar()),
                 ],
@@ -158,95 +229,11 @@ class _DashboardPageState extends State<DashboardPage>
     return 'Good Evening';
   }
 
-  Widget _buildHeader() {
-    final doctorName = AuthService.doctorData?['name'] ?? 'Doctor';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            '${_getGreeting()} $doctorName!',
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3142),
-            ),
-          ),
-          Row(
-            children: [
-              // Notification bell with red dot
-              InkWell(
-                onTap: () {
-                  // Open notifications drawer from main layout
-                  final scaffoldContext = context
-                      .findAncestorStateOfType<ScaffoldState>()
-                      ?.context;
-                  if (scaffoldContext != null) {
-                    MainLayout.openNotifications(scaffoldContext);
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E5E5)),
-                  ),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Icon(
-                        Icons.notifications_outlined,
-                        size: 18,
-                        color: Color(0xFF2D3142),
-                      ),
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Profile avatar
-              InkWell(
-                onTap: () => Scaffold.of(context).openEndDrawer(),
-                child: CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFFFDB777),
-                  child: Text(
-                    (AuthService.doctorData?['name']?[0] ?? 'D').toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCenterColumn() {
     return Builder(
       builder: (context) {
         return SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(30, 24, 30, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -374,6 +361,7 @@ class _DashboardPageState extends State<DashboardPage>
       width: 280,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -478,6 +466,9 @@ class _DashboardPageState extends State<DashboardPage>
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.15),
+            ),
           ),
           child: _isLoading
               ? const Center(
@@ -553,6 +544,7 @@ class _DashboardPageState extends State<DashboardPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Row(
         children: [
@@ -649,7 +641,7 @@ class _DashboardPageState extends State<DashboardPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0F0F0)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -756,7 +748,7 @@ class _DashboardPageState extends State<DashboardPage>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0F0F0)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -782,26 +774,24 @@ class _DashboardPageState extends State<DashboardPage>
                       PieChartData(
                         sectionsSpace: 0,
                         centerSpaceRadius: 30,
-                        sections: [
-                          PieChartSectionData(
-                            color: const Color(0xFF5B4FA3),
-                            value: 40,
-                            title: '',
-                            radius: 10,
-                          ),
-                          PieChartSectionData(
-                            color: const Color(0xFF00BCD4),
-                            value: 30,
-                            title: '',
-                            radius: 10,
-                          ),
-                          PieChartSectionData(
-                            color: const Color(0xFF2D3142),
-                            value: 30,
-                            title: '',
-                            radius: 10,
-                          ),
-                        ],
+                        sections: _analyticsData!.planBreakdown
+                            .asMap()
+                            .entries
+                            .map((entry) {
+                              final colors = [
+                                const Color(0xFF5B4FA3),
+                                const Color(0xFF00BCD4),
+                                const Color(0xFF2D3142),
+                                const Color(0xFF8B5CF6),
+                              ];
+                              return PieChartSectionData(
+                                color: colors[entry.key % colors.length],
+                                value: entry.value.value,
+                                title: '',
+                                radius: 10,
+                              );
+                            })
+                            .toList(),
                       ),
                     ),
             ),
@@ -833,7 +823,7 @@ class _DashboardPageState extends State<DashboardPage>
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(10, 24, 24, 30),
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FC),
@@ -848,7 +838,12 @@ class _DashboardPageState extends State<DashboardPage>
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.only(
+              left: 24,
+              right: 24,
+              bottom: 24,
+              top: 0,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -858,13 +853,18 @@ class _DashboardPageState extends State<DashboardPage>
                     horizontal: 18,
                     vertical: 14,
                   ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                      bottomLeft: Radius.circular(16),
+                      bottomRight: Radius.circular(16),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -878,33 +878,37 @@ class _DashboardPageState extends State<DashboardPage>
                           letterSpacing: 1.5,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _getMonthYear(_currentMonth),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                      InkWell(
+                        onTap: () => _selectDate(context),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _getMonthYear(_currentMonth),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              Icons.calendar_today,
-                              color: Colors.white,
-                              size: 14,
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.calendar_today,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
@@ -938,7 +942,18 @@ class _DashboardPageState extends State<DashboardPage>
                           date.day == _selectedDate.day &&
                           date.month == _selectedDate.month &&
                           date.year == _selectedDate.year;
-                      return _buildCalendarDay(date.day.toString(), isSelected);
+                      return InkWell(
+                        onTap: () {
+                          setState(() {
+                            _selectedDate = date;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: _buildCalendarDay(
+                          date.day.toString(),
+                          isSelected,
+                        ),
+                      );
                     }).toList(),
                   ),
                 ),
@@ -969,34 +984,95 @@ class _DashboardPageState extends State<DashboardPage>
                 const SizedBox(height: 20),
                 // Appointments List
                 Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _buildAppointmentItem(
-                        '2:00 pm',
-                        'Meeting with chief physician Dr. Williams',
-                        const Color(0xFFEC4899),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '2:30 pm',
-                        'Consultation with Mr. White',
-                        const Color(0xFF8B5CF6),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:00 pm',
-                        'Consultation with Mrs. Maisey',
-                        const Color(0xFF10B981),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildAppointmentItem(
-                        '3:50 pm',
-                        'Examination of Mrs. Lee\'s freckle',
-                        const Color(0xFF8B5CF6),
-                      ),
-                    ],
-                  ),
+                  child: _isLoadingAppointments
+                      ? const Center(child: CircularProgressIndicator())
+                      : Builder(
+                          builder: (context) {
+                            final filteredAppointments = _appointments.where((
+                              apt,
+                            ) {
+                              try {
+                                final aptDate = DateTime.parse(
+                                  apt['appointment_date'],
+                                );
+                                return aptDate.year == _selectedDate.year &&
+                                    aptDate.month == _selectedDate.month &&
+                                    aptDate.day == _selectedDate.day;
+                              } catch (e) {
+                                return false;
+                              }
+                            }).toList();
+
+                            if (filteredAppointments.isEmpty) {
+                              return const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 20),
+                                  child: Text(
+                                    'No appointments for this day',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            return ListView.separated(
+                              padding: EdgeInsets.zero,
+                              itemCount: filteredAppointments.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                final apt = filteredAppointments[index];
+                                final rawTime =
+                                    apt['appointment_time'] ?? '--:--';
+                                // Format time to remove seconds (HH:mm:ss -> HH:mm)
+                                final time =
+                                    rawTime.toString().split(':').length >= 2
+                                    ? '${rawTime.toString().split(':')[0]}:${rawTime.toString().split(':')[1]}'
+                                    : rawTime;
+
+                                final patientName =
+                                    apt['patient_name'] ?? 'Unknown Patient';
+                                final description =
+                                    apt['description']?.toString() ?? '';
+                                final aptReason =
+                                    apt['reason']?.toString() ?? '';
+
+                                final reason = description.isNotEmpty
+                                    ? description
+                                    : (aptReason.isNotEmpty
+                                          ? aptReason
+                                          : 'General Consultation');
+
+                                final status = apt['status'] ?? 'pending';
+                                final profileImage = apt['profile_image'];
+
+                                Color dotColor;
+                                switch (status.toLowerCase()) {
+                                  case 'completed':
+                                    dotColor = const Color(0xFF10B981);
+                                    break;
+                                  case 'cancelled':
+                                    dotColor = Colors.red;
+                                    break;
+                                  default:
+                                    dotColor = const Color(0xFFF59E0B);
+                                }
+
+                                return _buildAppointmentItem(
+                                  time,
+                                  patientName,
+                                  reason,
+                                  dotColor,
+                                  status,
+                                  profileImage,
+                                );
+                              },
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
@@ -1088,44 +1164,179 @@ class _DashboardPageState extends State<DashboardPage>
     );
   }
 
-  Widget _buildAppointmentItem(String time, String title, Color dotColor) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Time
-        SizedBox(
-          width: 55,
-          child: Text(
-            time,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[500],
-              fontWeight: FontWeight.w500,
+  Widget _buildAppointmentItem(
+    String time,
+    String patientName,
+    String reason,
+    Color dotColor,
+    String status,
+    String? profileImage,
+  ) {
+    final bool isCompleted = status.toLowerCase() == 'completed';
+    final bool isCancelled = status.toLowerCase() == 'cancelled';
+    final Color badgeColor = isCompleted
+        ? const Color(0xFF10B981)
+        : isCancelled
+        ? Colors.red
+        : const Color(0xFFF59E0B);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: profileImage != null && profileImage.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: profileImage,
+                            fit: BoxFit.cover,
+                            errorWidget: (context, url, error) => const Icon(
+                              Icons.person,
+                              color: Color(0xFF6366F1),
+                            ),
+                          )
+                        : const Icon(Icons.person, color: Color(0xFF6366F1)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        patientName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1F2937),
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        reason,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: badgeColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: badgeColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        status.toUpperCase(),
+                        style: TextStyle(
+                          color: badgeColor,
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        // Dot
-        Container(
-          width: 6,
-          height: 6,
-          margin: const EdgeInsets.only(top: 6),
-          decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 10),
-        // Title
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF374151),
-              fontWeight: FontWeight.w500,
-              height: 1.4,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
+              ),
+              border: Border(top: BorderSide(color: Colors.grey[100]!)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: Color(0xFF6366F1),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      time,
+                      style: const TextStyle(
+                        color: Color(0xFF6366F1),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.medical_services_outlined,
+                      size: 12,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Dr. You',
+                      style: TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
