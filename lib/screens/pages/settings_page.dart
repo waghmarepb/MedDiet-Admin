@@ -175,7 +175,7 @@ class _SettingsPageState extends State<SettingsPage> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: const Color(0xFFF0F0F0),
+              color: AppColors.primary.withValues(alpha: 0.2),
               width: 1,
             ),
             boxShadow: [
@@ -211,7 +211,7 @@ class _SettingsPageState extends State<SettingsPage> {
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: AppColors.border,
+                color: AppColors.primary.withValues(alpha: 0.1),
                 width: 0.5,
               ),
             ),
@@ -329,7 +329,7 @@ class _SettingsPageState extends State<SettingsPage> {
               activeColor: AppColors.primary,
               activeTrackColor: AppColors.primary.withValues(alpha: 0.3),
               inactiveThumbColor: AppColors.textSecondary,
-              inactiveTrackColor: AppColors.border,
+              inactiveTrackColor: AppColors.primary.withValues(alpha: 0.1),
             ),
           ),
         ],

@@ -204,15 +204,15 @@ class _DashboardPageState extends State<DashboardPage>
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Center column - Transactions & Summary (80%)
-                  Expanded(flex: 8, child: _buildCenterColumn()),
+                  // Center column - Transactions & Summary (75%)
+                  Expanded(flex: 7, child: _buildCenterColumn()),
                   // Divider line
                   Container(
                     width: 1,
                     color: AppColors.primary.withValues(alpha: 0.2),
                   ),
-                  // Right column - Contacts (20%)
-                  Expanded(flex: 2, child: _buildRightSidebar()),
+                  // Right column - Contacts (25%)
+                  Expanded(flex: 3, child: _buildRightSidebar()),
                 ],
               ),
             ),
@@ -827,7 +827,7 @@ class _DashboardPageState extends State<DashboardPage>
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FC),
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
@@ -859,11 +859,11 @@ class _DashboardPageState extends State<DashboardPage>
                       end: Alignment.bottomRight,
                       colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                      bottomLeft: Radius.circular(16),
-                      bottomRight: Radius.circular(16),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                      bottomLeft: Radius.circular(10),
+                      bottomRight: Radius.circular(10),
                     ),
                   ),
                   child: Row(
@@ -1184,7 +1184,7 @@ class _DashboardPageState extends State<DashboardPage>
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
@@ -1288,8 +1288,8 @@ class _DashboardPageState extends State<DashboardPage>
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(20),
-                bottomRight: Radius.circular(20),
+                bottomLeft: Radius.circular(12),
+                bottomRight: Radius.circular(12),
               ),
               border: Border(top: BorderSide(color: Colors.grey[100]!)),
             ),

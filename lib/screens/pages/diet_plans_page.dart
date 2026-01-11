@@ -67,7 +67,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                               backgroundColor: Colors.transparent,
                               selectedColor: AppColors.primary.withValues(alpha: 0.2),
                               side: BorderSide(
-                                color: isSelected ? AppColors.primary : AppColors.border,
+                                color: isSelected ? AppColors.primary : AppColors.primary.withValues(alpha: 0.2),
                                 width: isSelected ? 2 : 1,
                               ),
                               labelStyle: TextStyle(
@@ -108,7 +108,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: filteredPlans.length,
                             separatorBuilder: (context, index) => Divider(
-                              color: AppColors.border,
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               height: 1,
                             ),
                             itemBuilder: (context, index) {
@@ -266,7 +266,7 @@ class _DietPlansPageState extends State<DietPlansPage> {
           color: index % 2 == 0 ? Colors.white : Colors.white,
           border: Border(
             bottom: BorderSide(
-              color: AppColors.border.withValues(alpha: 0.5),
+              color: AppColors.primary.withValues(alpha: 0.1),
               width: 0.5,
             ),
           ),

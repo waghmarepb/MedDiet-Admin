@@ -4663,7 +4663,7 @@ MedDiet Team
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5E5)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
           ),
           child: DropdownButtonFormField<String>(
             value: selectedMealType,
@@ -4792,7 +4792,7 @@ MedDiet Team
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5E5)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
           ),
           child: DropdownButtonFormField<String>(
             value: selectedExerciseType,
@@ -4907,7 +4907,7 @@ MedDiet Team
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5E5)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
           ),
           child: DropdownButtonFormField<String>(
             value: selectedSupplementFrequency,
@@ -5050,7 +5050,7 @@ MedDiet Team
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5E5)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
           ),
           child: DropdownButtonFormField<String>(
             decoration: InputDecoration(
@@ -5127,7 +5127,7 @@ MedDiet Team
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FA),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE5E5E5)),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.1)),
           ),
           child: DropdownButtonFormField<String>(
             decoration: InputDecoration(
@@ -5262,15 +5262,19 @@ MedDiet Team
             suffixIcon: suffixIcon,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+              borderSide: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+              borderSide: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.success, width: 2),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
@@ -5708,7 +5712,9 @@ MedDiet Team
               : Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? AppColors.primary : const Color(0xFFE5E5E5),
+            color: isSelected
+                ? AppColors.primary
+                : AppColors.primary.withValues(alpha: 0.1),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -5879,13 +5885,24 @@ MedDiet Team
             _buildPatientHeader(patient),
             const SizedBox(height: 30),
 
-            // Health Metrics Grid - 4 Cards
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: _buildMetricCard(
+            // Health Metrics Grid
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Determine number of columns based on width
+                int crossAxisCount = constraints.maxWidth > 900 ? 4 : 2;
+                double childAspectRatio = constraints.maxWidth > 900
+                    ? 1.8
+                    : 1.5;
+
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: childAspectRatio,
+                  children: [
+                    _buildMetricCard(
                       'BMI',
                       patient['bmi'].toString(),
                       'kg/m²',
@@ -5893,23 +5910,11 @@ MedDiet Team
                       AppColors.primary,
                       onTap: () => _showBMIDialog(patient),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildMetricCard(
-                      'Weight',
-                      '${patient['weight']} kg',
-                      'Target: ${patient['targetWeight']} kg',
-                      Icons.scale,
-                      AppColors.accent,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildStepsCard(patient)),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildCaloriesCard(patient)),
-                ],
-              ),
+                    _buildStepsCard(patient),
+                    _buildCaloriesCard(patient),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 20),
 
@@ -6032,17 +6037,40 @@ MedDiet Team
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  (patient['name'] as String).trim().toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.5,
-                    height: 1.0,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        (patient['name'] as String).trim().toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.5,
+                          height: 1.0,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _showPatientMenu(patient),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.more_vert,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -6051,49 +6079,25 @@ MedDiet Team
                       Icons.cake_outlined,
                       '${patient['age']} years',
                     ),
-                    const SizedBox(width: 16),
-                    _buildHeaderInfo(Icons.person_outline, patient['gender']),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
+                    _buildHeaderInfo(
+                      Icons.monitor_weight_outlined,
+                      '${patient['weight']} kg',
+                    ),
+                    const SizedBox(width: 12),
+                    _buildHeaderInfo(
+                      Icons.height_outlined,
+                      '${patient['height']} cm',
+                    ),
+                    const SizedBox(width: 12),
                     _buildHeaderInfo(Icons.badge_outlined, patient['id']),
                   ],
                 ),
                 const SizedBox(height: 10),
-                Row(
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.restaurant_menu,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            patient['plan'],
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
                     InkWell(
                       onTap: () => _showFollowUpDialog(patient),
                       borderRadius: BorderRadius.circular(10),
@@ -6134,7 +6138,6 @@ MedDiet Team
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
                     InkWell(
                       onTap: () => _showFollowUpHistoryDialog(patient),
                       borderRadius: BorderRadius.circular(10),
@@ -6157,13 +6160,13 @@ MedDiet Team
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.history,
                               color: Colors.deepPurple,
                               size: 16,
                             ),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               'Flow Up History',
                               style: TextStyle(
                                 fontSize: 14,
@@ -6175,7 +6178,6 @@ MedDiet Team
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
                     InkWell(
                       onTap: () => _showBookAppointmentDialog(patient),
                       borderRadius: BorderRadius.circular(10),
@@ -6198,13 +6200,13 @@ MedDiet Team
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.calendar_month,
                               color: Colors.white,
                               size: 16,
                             ),
                             const SizedBox(width: 8),
-                            Text(
+                            const Text(
                               'Book Appointment',
                               style: TextStyle(
                                 fontSize: 14,
@@ -6216,7 +6218,6 @@ MedDiet Team
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
                     InkWell(
                       onTap: () => _showAppointmentHistoryDialog(patient),
                       borderRadius: BorderRadius.circular(10),
@@ -6262,86 +6263,33 @@ MedDiet Team
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Row(
-                children: [
-                  InkWell(
-                    onTap: _fetchPatients,
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.refresh,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildHeaderIconButton(Icons.phone, Colors.white),
-                  const SizedBox(width: 8),
-                  _buildHeaderIconButton(Icons.message, Colors.white),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: () => _showPatientMenu(patient),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.more_vert,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
   Widget _buildHeaderInfo(IconData icon, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white70, size: 16),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 13,
-            color: Colors.white70,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderIconButton(IconData icon, Color color) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
-      child: IconButton(
-        icon: Icon(icon, size: 20, color: color),
-        onPressed: () {},
-        padding: const EdgeInsets.all(8),
-        constraints: const BoxConstraints(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -6394,6 +6342,7 @@ MedDiet Team
                       ],
                     ),
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
                     boxShadow: [
                       BoxShadow(
                         color: color.withValues(alpha: 0.2),
@@ -6483,6 +6432,9 @@ MedDiet Team
                     decoration: BoxDecoration(
                       color: AppColors.info.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.info.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Icon(
                       Icons.directions_walk,
@@ -6598,6 +6550,9 @@ MedDiet Team
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: const Icon(
                       Icons.local_fire_department,
@@ -6703,6 +6658,9 @@ MedDiet Team
                       decoration: BoxDecoration(
                         color: AppColors.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.accent.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Icon(
                         Icons.fitness_center,
@@ -6725,23 +6683,21 @@ MedDiet Team
                   onTap: _showAddExerciseDialog,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
+                    width: 130,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
                     decoration: BoxDecoration(
-                      gradient: AppColors.accentGradient,
+                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.add, color: Colors.white, size: 16),
                         SizedBox(width: 4),
@@ -6812,6 +6768,9 @@ MedDiet Team
                         ],
                       ),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.3),
+                      ),
                       boxShadow: [
                         BoxShadow(
                           color: AppColors.accent.withValues(alpha: 0.2),
@@ -6847,6 +6806,9 @@ MedDiet Team
                     decoration: BoxDecoration(
                       color: AppColors.accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.accent.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Text(
                       '${patient['exerciseMinutes']} min',
@@ -6866,6 +6828,9 @@ MedDiet Team
                     decoration: BoxDecoration(
                       color: Colors.orange.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.orange.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -6981,7 +6946,10 @@ MedDiet Team
                   colors: [const Color(0xFFFAFAFA), Colors.white],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
@@ -7273,6 +7241,9 @@ MedDiet Team
                       decoration: BoxDecoration(
                         color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.success.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Icon(
                         Icons.restaurant,
@@ -7300,18 +7271,11 @@ MedDiet Team
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.success,
-                          AppColors.success.withValues(alpha: 0.8),
-                        ],
-                      ),
+                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.success.withValues(alpha: 0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -7382,6 +7346,9 @@ MedDiet Team
                     decoration: BoxDecoration(
                       color: AppColors.success.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: AppColors.success.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Icon(
                       Icons.restaurant,
@@ -7391,7 +7358,7 @@ MedDiet Team
                   ),
                   const SizedBox(width: 12),
                   const Text(
-                    'Meals Today',
+                    'Meals',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -7420,36 +7387,23 @@ MedDiet Team
                           vertical: 7,
                         ),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              Colors.red,
-                              Colors.red.withValues(alpha: 0.8),
-                            ],
-                          ),
+                          color: Colors.red.shade50,
+                          border: Border.all(color: Colors.red.shade200),
                           borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
                         ),
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               Icons.delete_sweep,
-                              color: Colors.white,
+                              color: Colors.red,
                               size: 16,
                             ),
                             SizedBox(width: 4),
                             Text(
                               'Delete All',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Colors.red,
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -7463,30 +7417,21 @@ MedDiet Team
                     onTap: _showAddMealDialog,
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
+                      width: 130,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            AppColors.success,
-                            AppColors.success.withValues(alpha: 0.8),
-                          ],
-                        ),
+                        gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.success.withValues(alpha: 0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.add, color: Colors.white, size: 16),
                           SizedBox(width: 4),
@@ -7523,7 +7468,10 @@ MedDiet Team
                   colors: [const Color(0xFFFAFAFA), Colors.white],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
@@ -8424,11 +8372,15 @@ MedDiet Team
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+              borderSide: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE5E5E5)),
+              borderSide: BorderSide(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -8655,13 +8607,20 @@ MedDiet Team
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Colors.grey.shade300,
+                                color: AppColors.primary.withValues(alpha: 0.3),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(
-                                color: Colors.grey.shade300,
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(
+                                color: AppColors.primary,
+                                width: 2,
                               ),
                             ),
                           ),
@@ -9033,7 +8992,9 @@ MedDiet Team
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -9087,6 +9048,9 @@ MedDiet Team
                       decoration: BoxDecoration(
                         color: Colors.blue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: Colors.blue.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: const Icon(
                         Icons.medication,
@@ -9109,30 +9073,21 @@ MedDiet Team
                   onTap: _showAddSupplementDialog,
                   borderRadius: BorderRadius.circular(10),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
+                    width: 130,
+                    padding: const EdgeInsets.symmetric(vertical: 7),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.blue,
-                          Colors.blue.withValues(alpha: 0.8),
-                        ],
-                      ),
+                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.blue.withValues(alpha: 0.3),
+                          color: AppColors.primary.withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
                     child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.add, color: Colors.white, size: 16),
                         SizedBox(width: 4),
@@ -9200,6 +9155,7 @@ MedDiet Team
                     ],
                   ),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.blue.withValues(alpha: 0.2),
@@ -9298,7 +9254,10 @@ MedDiet Team
                   colors: [const Color(0xFFFAFAFA), Colors.white],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  width: 1,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
