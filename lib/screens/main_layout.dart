@@ -116,12 +116,9 @@ class _MainLayoutState extends State<MainLayout> {
           padding: const EdgeInsets.all(20),
           child: Row(
             children: [
-              // Fixed Sidebar - completely separate
-              Container(
-                margin: const EdgeInsets.symmetric(vertical: 20),
-                child: _buildSidebar(context),
-              ),
-              const SizedBox(width: 20),
+              // Fixed Sidebar
+              _buildSidebar(context),
+              const SizedBox(width: 15),
               // Dynamic Content Area
               Expanded(child: widget.child ?? _pages[_selectedIndex]),
             ],
@@ -133,7 +130,8 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _buildSidebar(BuildContext context) {
     return Container(
-      width: 70,
+      width: 80,
+      margin: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
@@ -144,56 +142,21 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 30),
-          _buildSidebarIcon(
-            Icons.dashboard_rounded,
-            _selectedIndex == 0,
-            onTap: () => _navigateToPage(0),
-            tooltip: 'Dashboard',
-          ),
-          const SizedBox(height: 20),
-          _buildSidebarIcon(
-            Icons.people_rounded,
-            _selectedIndex == 1,
-            onTap: () => _navigateToPage(1),
-            tooltip: 'Patients',
-          ),
-          const SizedBox(height: 20),
-          _buildSidebarIcon(
-            Icons.restaurant_menu,
-            _selectedIndex == 2,
-            onTap: () => _navigateToPage(2),
-            tooltip: 'Diet Plans',
-          ),
-          const SizedBox(height: 20),
-          _buildSidebarIcon(
-            Icons.calendar_today_outlined,
-            _selectedIndex == 3,
-            onTap: () => _navigateToPage(3),
-            tooltip: 'Appointments',
-          ),
-          const SizedBox(height: 20),
-          _buildSidebarIcon(
-            Icons.analytics_outlined,
-            _selectedIndex == 4,
-            onTap: () => _navigateToPage(4),
-            tooltip: 'Reports',
-          ),
+          const SizedBox(height: 40),
+          _buildSidebarItem(Icons.dashboard_rounded, 'Dashboard', 0),
+          const SizedBox(height: 15),
+          _buildSidebarItem(Icons.people_rounded, 'Patients', 1),
+          const SizedBox(height: 15),
+          _buildSidebarItem(Icons.restaurant_menu, 'Diet Plans', 2),
+          const SizedBox(height: 15),
+          _buildSidebarItem(Icons.calendar_today_outlined, 'Appointments', 3),
+          const SizedBox(height: 15),
+          _buildSidebarItem(Icons.analytics_outlined, 'Reports', 4),
           const Spacer(),
-          _buildSidebarIcon(
-            Icons.settings,
-            _selectedIndex == 5,
-            onTap: () => _navigateToPage(5),
-            tooltip: 'Settings',
-          ),
-          const SizedBox(height: 20),
-          _buildSidebarIcon(
-            Icons.help_outline,
-            _selectedIndex == 6,
-            onTap: () => _navigateToPage(6),
-            tooltip: 'Help',
-          ),
-          const SizedBox(height: 30),
+          _buildSidebarItem(Icons.settings, 'Settings', 5),
+          const SizedBox(height: 15),
+          _buildSidebarItem(Icons.help_outline, 'Help', 6),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -205,31 +168,73 @@ class _MainLayoutState extends State<MainLayout> {
     });
   }
 
-  Widget _buildSidebarIcon(
-    IconData icon,
-    bool isActive, {
-    VoidCallback? onTap,
-    String? tooltip,
-  }) {
-    final iconWidget = InkWell(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: isActive
-              ? Colors.white.withValues(alpha: 0.2)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
+  Widget _buildSidebarItem(IconData icon, String tooltip, int index) {
+    final isActive = _selectedIndex == index;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () => _navigateToPage(index),
+        child: Container(
+          width: double.infinity,
+          height: 60,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Active Background / Bridge
+              if (isActive) ...[
+                // Top Scoop (Page side)
+                Positioned(
+                  top: -30,
+                  right: -15,
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CustomPaint(
+                      painter: ConcaveCornerPainter(isTop: true),
+                    ),
+                  ),
+                ),
+                // Main Bridge
+                Positioned(
+                  left: 0,
+                  right: -35,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(25),
+                        bottomLeft: Radius.circular(25),
+                      ),
+                    ),
+                  ),
+                ),
+                // Bottom Scoop (Page side)
+                Positioned(
+                  bottom: -30,
+                  right: -15,
+                  child: SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CustomPaint(
+                      painter: ConcaveCornerPainter(isTop: false),
+                    ),
+                  ),
+                ),
+              ],
+              // Icon
+              Icon(
+                icon,
+                color: isActive ? AppColors.primary : Colors.white,
+                size: 24,
+              ),
+            ],
+          ),
         ),
-        child: Icon(icon, color: Colors.white, size: 22),
       ),
     );
-
-    if (tooltip != null) {
-      return Tooltip(message: tooltip, child: iconWidget);
-    }
-    return iconWidget;
   }
 
   Widget _buildProfileDrawer(BuildContext context) {
@@ -706,4 +711,47 @@ class _MainLayoutState extends State<MainLayout> {
     }
     return null;
   }
+}
+
+class ConcaveCornerPainter extends CustomPainter {
+  final bool isTop;
+
+  ConcaveCornerPainter({required this.isTop});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+
+    if (isTop) {
+      // Top Scoop: Fill square but cut out bottom-right circle
+      path.moveTo(0, size.height);
+      path.lineTo(size.width, size.height);
+      path.lineTo(size.width, 0);
+      path.arcToPoint(
+        Offset(0, size.height),
+        radius: Radius.circular(size.width),
+        clockwise: true,
+      );
+    } else {
+      // Bottom Scoop: Fill square but cut out top-right circle
+      path.moveTo(0, 0);
+      path.lineTo(size.width, 0);
+      path.lineTo(size.width, size.height);
+      path.arcToPoint(
+        const Offset(0, 0),
+        radius: Radius.circular(size.width),
+        clockwise: false,
+      );
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

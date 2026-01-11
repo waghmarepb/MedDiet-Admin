@@ -9,30 +9,32 @@ class HelpPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
         child: Column(
           children: [
-            const CommonHeader(
-              title: 'Help & Support',
-            ),
+            const CommonHeader(title: 'Help & Support'),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 20,
+                ),
                 child: Row(
                   children: [
-                    Expanded(
-                      flex: 2,
-                      child: _buildFAQSection(),
-                    ),
+                    Expanded(flex: 2, child: _buildFAQSection()),
                     const SizedBox(width: 30),
-                    Expanded(
-                      child: _buildContactSection(),
-                    ),
+                    Expanded(child: _buildContactSection()),
                   ],
                 ),
               ),
@@ -73,11 +75,26 @@ class HelpPage extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                _buildFAQItem('How do I add a new patient?', 'Go to Patients page and click on "Add New Patient" button.'),
-                _buildFAQItem('How do I create a diet plan?', 'Navigate to Diet Plans and click "Create New Plan".'),
-                _buildFAQItem('How can I schedule appointments?', 'Use the Appointments page to schedule and manage all consultations.'),
-                _buildFAQItem('How do I view reports?', 'Check the Reports & Analytics page for detailed insights.'),
-                _buildFAQItem('How to change my password?', 'Go to Settings > Account Settings > Change Password.'),
+                _buildFAQItem(
+                  'How do I add a new patient?',
+                  'Go to Patients page and click on "Add New Patient" button.',
+                ),
+                _buildFAQItem(
+                  'How do I create a diet plan?',
+                  'Navigate to Diet Plans and click "Create New Plan".',
+                ),
+                _buildFAQItem(
+                  'How can I schedule appointments?',
+                  'Use the Appointments page to schedule and manage all consultations.',
+                ),
+                _buildFAQItem(
+                  'How do I view reports?',
+                  'Check the Reports & Analytics page for detailed insights.',
+                ),
+                _buildFAQItem(
+                  'How to change my password?',
+                  'Go to Settings > Account Settings > Change Password.',
+                ),
               ],
             ),
           ),
@@ -105,7 +122,11 @@ class HelpPage extends StatelessWidget {
                   color: AppColors.info.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.help_outline, color: AppColors.info, size: 20),
+                child: const Icon(
+                  Icons.help_outline,
+                  color: AppColors.info,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -123,10 +144,7 @@ class HelpPage extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             answer,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Color(0xFF9E9E9E),
-            ),
+            style: const TextStyle(fontSize: 14, color: Color(0xFF9E9E9E)),
           ),
         ],
       ),
@@ -237,7 +255,13 @@ class HelpPage extends StatelessWidget {
     );
   }
 
-  Widget _buildContactCard(String title, String subtitle, IconData icon, Color color, {VoidCallback? onTap}) {
+  Widget _buildContactCard(
+    String title,
+    String subtitle,
+    IconData icon,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -246,7 +270,9 @@ class HelpPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: onTap != null ? Border.all(color: color.withValues(alpha: 0.2)) : null,
+          border: onTap != null
+              ? Border.all(color: color.withValues(alpha: 0.2))
+              : null,
         ),
         child: Row(
           children: [
@@ -283,12 +309,14 @@ class HelpPage extends StatelessWidget {
               ),
             ),
             if (onTap != null)
-              Icon(Icons.open_in_new, size: 18, color: color.withValues(alpha: 0.5)),
+              Icon(
+                Icons.open_in_new,
+                size: 18,
+                color: color.withValues(alpha: 0.5),
+              ),
           ],
         ),
       ),
     );
   }
 }
-
-

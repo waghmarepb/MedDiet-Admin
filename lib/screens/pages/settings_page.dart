@@ -22,126 +22,121 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          bottomLeft: Radius.circular(30),
+        ),
         child: Column(
           children: [
-            const CommonHeader(
-              title: 'Settings',
-            ),
+            const CommonHeader(title: 'Settings'),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 30,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Account Settings Section
-                    _buildSettingsSection(
-                      'Account Settings',
-                      [
-                        _buildSettingItem(
-                          'Profile Information',
-                          Icons.person_outline,
-                          'View and edit your profile details',
-                          () => _handleProfileTap(context),
-                        ),
-                        _buildSettingItem(
-                          'Change Password',
-                          Icons.lock_outline,
-                          'Update your password for security',
-                          () => _handlePasswordTap(context),
-                        ),
-                        _buildSettingItem(
-                          'Email Preferences',
-                          Icons.email_outlined,
-                          'Manage your email address',
-                          () => _handleEmailTap(context),
-                        ),
-                      ],
-                    ),
+                    _buildSettingsSection('Account Settings', [
+                      _buildSettingItem(
+                        'Profile Information',
+                        Icons.person_outline,
+                        'View and edit your profile details',
+                        () => _handleProfileTap(context),
+                      ),
+                      _buildSettingItem(
+                        'Change Password',
+                        Icons.lock_outline,
+                        'Update your password for security',
+                        () => _handlePasswordTap(context),
+                      ),
+                      _buildSettingItem(
+                        'Email Preferences',
+                        Icons.email_outlined,
+                        'Manage your email address',
+                        () => _handleEmailTap(context),
+                      ),
+                    ]),
                     const SizedBox(height: 40),
 
                     // Notifications Section
-                    _buildSettingsSection(
-                      'Notifications',
-                      [
-                        _buildToggleItem(
-                          'Enable Notifications',
-                          Icons.notifications_outlined,
-                          'Receive all notifications',
-                          notificationsEnabled,
-                          (value) => setState(() => notificationsEnabled = value),
-                        ),
-                        _buildToggleItem(
-                          'Email Notifications',
-                          Icons.mail_outline,
-                          'Receive notifications via email',
-                          emailNotifications,
-                          (value) => setState(() => emailNotifications = value),
-                          enabled: notificationsEnabled,
-                        ),
-                        _buildToggleItem(
-                          'Push Notifications',
-                          Icons.notifications_active_outlined,
-                          'Receive push notifications',
-                          pushNotifications,
-                          (value) => setState(() => pushNotifications = value),
-                          enabled: notificationsEnabled,
-                        ),
-                      ],
-                    ),
+                    _buildSettingsSection('Notifications', [
+                      _buildToggleItem(
+                        'Enable Notifications',
+                        Icons.notifications_outlined,
+                        'Receive all notifications',
+                        notificationsEnabled,
+                        (value) => setState(() => notificationsEnabled = value),
+                      ),
+                      _buildToggleItem(
+                        'Email Notifications',
+                        Icons.mail_outline,
+                        'Receive notifications via email',
+                        emailNotifications,
+                        (value) => setState(() => emailNotifications = value),
+                        enabled: notificationsEnabled,
+                      ),
+                      _buildToggleItem(
+                        'Push Notifications',
+                        Icons.notifications_active_outlined,
+                        'Receive push notifications',
+                        pushNotifications,
+                        (value) => setState(() => pushNotifications = value),
+                        enabled: notificationsEnabled,
+                      ),
+                    ]),
                     const SizedBox(height: 40),
 
                     // Application Settings Section
-                    _buildSettingsSection(
-                      'Application Settings',
-                      [
-                        _buildDropdownItem(
-                          'Theme',
-                          Icons.palette_outlined,
-                          'Choose your preferred theme',
-                          selectedTheme,
-                          ['Light', 'Dark', 'System'],
-                          (value) => setState(() => selectedTheme = value),
-                        ),
-                        _buildDropdownItem(
-                          'Language',
-                          Icons.language_outlined,
-                          'Select your preferred language',
-                          selectedLanguage,
-                          ['English', 'Spanish', 'French', 'German'],
-                          (value) => setState(() => selectedLanguage = value),
-                        ),
-                      ],
-                    ),
+                    _buildSettingsSection('Application Settings', [
+                      _buildDropdownItem(
+                        'Theme',
+                        Icons.palette_outlined,
+                        'Choose your preferred theme',
+                        selectedTheme,
+                        ['Light', 'Dark', 'System'],
+                        (value) => setState(() => selectedTheme = value),
+                      ),
+                      _buildDropdownItem(
+                        'Language',
+                        Icons.language_outlined,
+                        'Select your preferred language',
+                        selectedLanguage,
+                        ['English', 'Spanish', 'French', 'German'],
+                        (value) => setState(() => selectedLanguage = value),
+                      ),
+                    ]),
                     const SizedBox(height: 40),
 
                     // System Section
-                    _buildSettingsSection(
-                      'System & Security',
-                      [
-                        _buildSettingItem(
-                          'Backup & Restore',
-                          Icons.backup_outlined,
-                          'Backup your data or restore from backup',
-                          () => _handleBackupTap(context),
-                        ),
-                        _buildSettingItem(
-                          'Privacy Policy',
-                          Icons.privacy_tip_outlined,
-                          'Read our privacy policy',
-                          () => _handlePrivacyTap(context),
-                        ),
-                        _buildSettingItem(
-                          'Terms of Service',
-                          Icons.description_outlined,
-                          'View terms and conditions',
-                          () => _handleTermsTap(context),
-                        ),
-                      ],
-                    ),
+                    _buildSettingsSection('System & Security', [
+                      _buildSettingItem(
+                        'Backup & Restore',
+                        Icons.backup_outlined,
+                        'Backup your data or restore from backup',
+                        () => _handleBackupTap(context),
+                      ),
+                      _buildSettingItem(
+                        'Privacy Policy',
+                        Icons.privacy_tip_outlined,
+                        'Read our privacy policy',
+                        () => _handlePrivacyTap(context),
+                      ),
+                      _buildSettingItem(
+                        'Terms of Service',
+                        Icons.description_outlined,
+                        'View terms and conditions',
+                        () => _handleTermsTap(context),
+                      ),
+                    ]),
                     const SizedBox(height: 40),
 
                     // About Section
@@ -224,11 +219,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
+                child: Icon(icon, color: AppColors.primary, size: 24),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -277,12 +268,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.border,
-            width: 0.5,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -307,7 +293,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   title,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: enabled
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -348,12 +336,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.border,
-            width: 0.5,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -363,11 +346,7 @@ class _SettingsPageState extends State<SettingsPage> {
               color: AppColors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: AppColors.primary,
-              size: 24,
-            ),
+            child: Icon(icon, color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -396,10 +375,10 @@ class _SettingsPageState extends State<SettingsPage> {
           DropdownButton<String>(
             value: selectedValue,
             items: options
-                .map((option) => DropdownMenuItem(
-                  value: option,
-                  child: Text(option),
-                ))
+                .map(
+                  (option) =>
+                      DropdownMenuItem(value: option, child: Text(option)),
+                )
                 .toList(),
             onChanged: (newValue) {
               if (newValue != null) {
@@ -537,5 +516,3 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 }
-
-
