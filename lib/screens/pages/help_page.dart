@@ -19,18 +19,42 @@ class HelpPage extends StatelessWidget {
           children: [
             const CommonHeader(title: 'Help & Support'),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 20,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(flex: 2, child: _buildFAQSection()),
-                    const SizedBox(width: 30),
-                    Expanded(child: _buildContactSection()),
-                  ],
-                ),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isDesktop = constraints.maxWidth > 1200;
+                  final isTablet = constraints.maxWidth > 768;
+                  final padding = isDesktop ? 40.0 : isTablet ? 30.0 : 20.0;
+                  
+                  if (isTablet) {
+                    // Desktop & Tablet: Two-column layout
+                    return Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: padding,
+                        vertical: 20,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 2, child: _buildFAQSection()),
+                          const SizedBox(width: 30),
+                          Expanded(child: _buildContactSection()),
+                        ],
+                      ),
+                    );
+                  } else {
+                    // Mobile: Single-column layout
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.all(padding),
+                      child: Column(
+                        children: [
+                          _buildFAQSection(),
+                          const SizedBox(height: 20),
+                          _buildContactSection(),
+                        ],
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -52,7 +76,7 @@ class HelpPage extends StatelessWidget {
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF0F0F0)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -67,29 +91,42 @@ class HelpPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           Expanded(
-            child: ListView(
-              children: [
-                _buildFAQItem(
-                  'How do I add a new patient?',
-                  'Go to Patients page and click on "Add New Patient" button.',
-                ),
-                _buildFAQItem(
-                  'How do I create a diet plan?',
-                  'Navigate to Diet Plans and click "Create New Plan".',
-                ),
-                _buildFAQItem(
-                  'How can I schedule appointments?',
-                  'Use the Appointments page to schedule and manage all consultations.',
-                ),
-                _buildFAQItem(
-                  'How do I view reports?',
-                  'Check the Reports & Analytics page for detailed insights.',
-                ),
-                _buildFAQItem(
-                  'How to change my password?',
-                  'Go to Settings > Account Settings > Change Password.',
-                ),
-              ],
+            child: ListView.separated(
+              itemCount: 5,
+              separatorBuilder: (context, index) => Divider(
+                color: AppColors.primary.withValues(alpha: 0.15),
+                thickness: 1,
+                height: 32,
+              ),
+              itemBuilder: (context, index) {
+                final faqs = [
+                  {
+                    'question': 'How do I add a new patient?',
+                    'answer': 'Go to Patients page and click on "Add New Patient" button.',
+                  },
+                  {
+                    'question': 'How do I create a diet plan?',
+                    'answer': 'Navigate to Diet Plans and click "Create New Plan".',
+                  },
+                  {
+                    'question': 'How can I schedule appointments?',
+                    'answer': 'Use the Appointments page to schedule and manage all consultations.',
+                  },
+                  {
+                    'question': 'How do I view reports?',
+                    'answer': 'Check the Reports & Analytics page for detailed insights.',
+                  },
+                  {
+                    'question': 'How to change my password?',
+                    'answer': 'Go to Settings > Account Settings > Change Password.',
+                  },
+                ];
+                
+                return _buildFAQItem(
+                  faqs[index]['question']!,
+                  faqs[index]['answer']!,
+                );
+              },
             ),
           ),
         ],
@@ -158,7 +195,7 @@ class HelpPage extends StatelessWidget {
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: const Color(0xFFF0F0F0)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,74 +208,92 @@ class HelpPage extends StatelessWidget {
               color: Color(0xFF2D3142),
             ),
           ),
-          const SizedBox(height: 30),
-          _buildContactCard(
-            'Email Support',
-            'support@meddiet.com',
-            Icons.email,
-            AppColors.primary,
-          ),
           const SizedBox(height: 20),
-          _buildContactCard(
-            'Phone Support',
-            '+91 123 456 7890',
-            Icons.phone,
-            AppColors.success,
-          ),
-          const SizedBox(height: 20),
-          _buildContactCard(
-            'Live Chat',
-            'Start a conversation',
-            Icons.chat,
-            AppColors.accent,
-          ),
-          const SizedBox(height: 20),
-          _buildContactCard(
-            'API Documentation',
-            'View backend API docs',
-            Icons.code,
-            const Color(0xFF6366F1),
-            onTap: () async {
-              final url = Uri.parse('http://localhost:3000/api-docs');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              gradient: AppColors.primaryGradient,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.3),
-                  blurRadius: 15,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: const Column(
+          Expanded(
+            child: ListView(
               children: [
-                Icon(Icons.support_agent, color: Colors.white, size: 54),
-                SizedBox(height: 16),
-                Text(
-                  'Need Help?',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                _buildContactCard(
+                  'Email Support',
+                  'support@meddiet.com',
+                  Icons.email,
+                  AppColors.primary,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  'Our support team is available 24/7 to assist you.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white70,
-                    height: 1.4,
+                Divider(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  thickness: 1,
+                  height: 32,
+                ),
+                _buildContactCard(
+                  'Phone Support',
+                  '+91 123 456 7890',
+                  Icons.phone,
+                  AppColors.success,
+                ),
+                Divider(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  thickness: 1,
+                  height: 32,
+                ),
+                _buildContactCard(
+                  'Live Chat',
+                  'Start a conversation',
+                  Icons.chat,
+                  AppColors.accent,
+                ),
+                Divider(
+                  color: AppColors.primary.withValues(alpha: 0.15),
+                  thickness: 1,
+                  height: 32,
+                ),
+                _buildContactCard(
+                  'API Documentation',
+                  'View backend API docs',
+                  Icons.code,
+                  const Color(0xFF6366F1),
+                  onTap: () async {
+                    final url = Uri.parse('http://localhost:3000/api-docs');
+                    if (await canLaunchUrl(url)) {
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                    }
+                  },
+                ),
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 15,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.support_agent, color: Colors.white, size: 54),
+                      SizedBox(height: 16),
+                      Text(
+                        'Need Help?',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Our support team is available 24/7 to assist you.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.white70,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

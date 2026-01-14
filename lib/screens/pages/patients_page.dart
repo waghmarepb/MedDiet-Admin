@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:lottie/lottie.dart';
 
 class PatientsPage extends StatefulWidget {
   const PatientsPage({super.key});
@@ -1785,6 +1786,159 @@ MedDiet Team
           color: color,
           fontWeight: FontWeight.bold,
           fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBMIMetricCard(Map<String, dynamic> patient) {
+    final double bmi = (patient['bmi'] as num?)?.toDouble() ?? 0.0;
+    
+    // Determine BMI category and color
+    String category = 'Normal';
+    String status = 'Good';
+    Color color = const Color(0xFF4CAF50); // Green
+    IconData categoryIcon = Icons.check_circle;
+
+    if (bmi < 18.5) {
+      category = 'Underweight';
+      status = 'Low';
+      color = const Color(0xFF2196F3); // Blue
+      categoryIcon = Icons.trending_down;
+    } else if (bmi >= 18.5 && bmi < 25) {
+      category = 'Normal';
+      status = 'Good';
+      color = const Color(0xFF4CAF50); // Green
+      categoryIcon = Icons.check_circle;
+    } else if (bmi >= 25 && bmi < 30) {
+      category = 'Overweight';
+      status = 'High';
+      color = const Color(0xFFFF9800); // Orange
+      categoryIcon = Icons.trending_up;
+    } else {
+      category = 'Obese';
+      status = 'Very High';
+      color = const Color(0xFFF44336); // Red
+      categoryIcon = Icons.warning;
+    }
+
+    return InkWell(
+      onTap: () => _showBMIDialog(patient),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
+                  ),
+                  child: Icon(Icons.monitor_weight, color: color, size: 22),
+                ),
+                // Category indicator badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(categoryIcon, color: Colors.white, size: 12),
+                      const SizedBox(width: 4),
+                      Text(
+                        status,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'BMI',
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF9E9E9E),
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: color,
+                    letterSpacing: -0.5,
+                    height: 1.0,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'kg/m²',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF9E9E9E),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -3644,10 +3798,11 @@ MedDiet Team
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.restaurant,
-                          color: Colors.white,
-                          size: 28,
+                        child: Lottie.asset(
+                          'assets/images/lottie/Healthy food for diet & fitness.json',
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -3918,10 +4073,11 @@ MedDiet Team
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(
-                          Icons.fitness_center,
-                          color: Colors.white,
-                          size: 28,
+                        child: Lottie.asset(
+                          'assets/images/lottie/Olympics.json',
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.contain,
                         ),
                       ),
                       const SizedBox(width: 16),
@@ -5902,14 +6058,7 @@ MedDiet Team
                   mainAxisSpacing: 12,
                   childAspectRatio: childAspectRatio,
                   children: [
-                    _buildMetricCard(
-                      'BMI',
-                      patient['bmi'].toString(),
-                      'kg/m²',
-                      Icons.monitor_weight,
-                      AppColors.primary,
-                      onTap: () => _showBMIDialog(patient),
-                    ),
+                    _buildBMIMetricCard(patient),
                     _buildStepsCard(patient),
                     _buildCaloriesCard(patient),
                   ],
@@ -6333,14 +6482,7 @@ MedDiet Team
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        color.withValues(alpha: 0.15),
-                        color.withValues(alpha: 0.08),
-                      ],
-                    ),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: color.withValues(alpha: 0.3)),
                     boxShadow: [
@@ -6430,7 +6572,7 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withValues(alpha: 0.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: AppColors.info.withValues(alpha: 0.3),
@@ -6548,7 +6690,7 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: Colors.orange.withValues(alpha: 0.3),
@@ -6656,16 +6798,17 @@ MedDiet Team
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.accent.withValues(alpha: 0.1),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: AppColors.accent.withValues(alpha: 0.3),
                         ),
                       ),
-                      child: Icon(
-                        Icons.fitness_center,
-                        color: AppColors.accent,
-                        size: 24,
+                      child: Lottie.asset(
+                        'assets/images/lottie/Olympics.json',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -6759,30 +6902,17 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppColors.accent.withValues(alpha: 0.15),
-                          AppColors.accent.withValues(alpha: 0.08),
-                        ],
-                      ),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: AppColors.accent.withValues(alpha: 0.3),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.accent.withValues(alpha: 0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
                     ),
-                    child: Icon(
-                      Icons.fitness_center,
-                      color: AppColors.accent,
-                      size: 24,
+                    child: Lottie.asset(
+                      'assets/images/lottie/Olympics.json',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -6798,117 +6928,25 @@ MedDiet Team
               ),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Text(
-                      '${patient['exerciseMinutes']} min',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.accent,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.local_fire_department,
-                          size: 14,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${patient['caloriesBurned']} kcal',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  if (exercises.isNotEmpty)
-                    InkWell(
-                      onTap: () => _confirmDeleteAllExercises(),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          border: Border.all(color: Colors.red.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.delete_sweep,
-                              color: Colors.red,
-                              size: 16,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Delete All',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (exercises.isNotEmpty) const SizedBox(width: 8),
                   InkWell(
                     onTap: _showAddExerciseDialog,
                     borderRadius: BorderRadius.circular(10),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 7,
-                      ),
+                      width: 130,
+                      padding: const EdgeInsets.symmetric(vertical: 7),
                       decoration: BoxDecoration(
-                        gradient: AppColors.accentGradient,
+                        gradient: AppColors.primaryGradient,
                         borderRadius: BorderRadius.circular(10),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accent.withValues(alpha: 0.3),
+                            color: AppColors.primary.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
                         ],
                       ),
                       child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.add, color: Colors.white, size: 16),
                           SizedBox(width: 4),
@@ -7128,56 +7166,6 @@ MedDiet Team
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.orange.withValues(alpha: 0.15),
-                          Colors.orange.withValues(alpha: 0.08),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.local_fire_department,
-                          size: 16,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${exercise['calories']}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Text(
-                          'kcal',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: () => _showEditExerciseDialog(exercise),
                     icon: const Icon(Icons.edit),
@@ -7239,16 +7227,17 @@ MedDiet Team
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.1),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: AppColors.success.withValues(alpha: 0.3),
                         ),
                       ),
-                      child: Icon(
-                        Icons.restaurant,
-                        color: AppColors.success,
-                        size: 24,
+                      child: Lottie.asset(
+                        'assets/images/lottie/Healthy food for diet & fitness.json',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -7344,16 +7333,17 @@ MedDiet Team
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: AppColors.success.withValues(alpha: 0.3),
                       ),
                     ),
-                    child: Icon(
-                      Icons.restaurant,
-                      color: AppColors.success,
-                      size: 24,
+                    child: Lottie.asset(
+                      'assets/images/lottie/Healthy food for diet & fitness.json',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -7367,87 +7357,39 @@ MedDiet Team
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  Text(
-                    '${meals.length} meals',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF9E9E9E),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  if (meals.isNotEmpty)
-                    InkWell(
-                      onTap: () => _confirmDeleteAllMeals(),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          border: Border.all(color: Colors.red.shade200),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.delete_sweep,
-                              color: Colors.red,
-                              size: 16,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Delete All',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: _showAddMealDialog,
+              InkWell(
+                onTap: _showAddMealDialog,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 130,
+                  padding: const EdgeInsets.symmetric(vertical: 7),
+                  decoration: BoxDecoration(
+                    gradient: AppColors.primaryGradient,
                     borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      width: 130,
-                      padding: const EdgeInsets.symmetric(vertical: 7),
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add, color: Colors.white, size: 16),
-                          SizedBox(width: 4),
-                          Text(
-                            'Add Meal',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                   ),
-                ],
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.add, color: Colors.white, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Add Meal',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
@@ -7627,56 +7569,6 @@ MedDiet Team
                       ],
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.orange.withValues(alpha: 0.15),
-                          Colors.orange.withValues(alpha: 0.08),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.local_fire_department,
-                          size: 16,
-                          color: Colors.orange,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${meal['calories']}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Text(
-                          'kcal',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: () => _showEditMealDialog(meal),
                     icon: const Icon(Icons.edit),

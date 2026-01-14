@@ -4,6 +4,7 @@ import 'package:meddiet/constants/api_config.dart';
 import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/services/auth_service.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:meddiet/widgets/shimmer_widgets.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
@@ -180,7 +181,18 @@ class _AppointmentsPageState extends State<AppointmentsPage> {
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Padding(
+                      padding: const EdgeInsets.all(30),
+                      child: ListView(
+                        children: [
+                          ShimmerWidgets.appointmentCardShimmer(),
+                          ShimmerWidgets.appointmentCardShimmer(),
+                          ShimmerWidgets.appointmentCardShimmer(),
+                          ShimmerWidgets.appointmentCardShimmer(),
+                          ShimmerWidgets.appointmentCardShimmer(),
+                        ],
+                      ),
+                    )
                   : LayoutBuilder(
                       builder: (context, constraints) {
                         final bool isLargeScreen = constraints.maxWidth > 1000;

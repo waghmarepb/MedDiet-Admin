@@ -471,3 +471,4 @@ The same pattern used for meals can be applied to all other sections:
 
 Would you like me to implement these features for a specific section (Exercises, Supplements, or Weight Targets) in detail?
 
+

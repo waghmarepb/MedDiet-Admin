@@ -184,46 +184,87 @@ class _UserDetailsPageState extends State<UserDetailsPage>
             children: [
               _buildHeader(context),
               Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(30),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Column
-                      Expanded(
-                        flex: 3,
-                        child: Column(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth > 1200;
+                    final isTablet = constraints.maxWidth > 768;
+                    final padding = isDesktop
+                        ? 30.0
+                        : isTablet
+                        ? 20.0
+                        : 16.0;
+
+                    if (isTablet) {
+                      // Desktop & Tablet: Two-column layout
+                      return Padding(
+                        padding: EdgeInsets.all(padding),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(child: _buildUserProfile()),
-                            const SizedBox(height: 20),
-                            Expanded(flex: 2, child: _buildInfoSection()),
+                            // Left Column
+                            Expanded(
+                              flex: isDesktop ? 3 : 2,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    _buildUserProfile(),
+                                    const SizedBox(height: 20),
+                                    _buildInfoSection(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            // Right Column
+                            Expanded(
+                              flex: isDesktop ? 4 : 3,
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  children: [
+                                    _buildDateSelector(),
+                                    const SizedBox(height: 20),
+                                    _buildDietPlanSection(),
+                                    const SizedBox(height: 20),
+                                    _buildExerciseSection(),
+                                    const SizedBox(height: 20),
+                                    _buildSupplementsSection(),
+                                    const SizedBox(height: 20),
+                                    _buildWeightTargetSection(),
+                                    const SizedBox(height: 20),
+                                    _buildFollowUpSection(),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      // Right Column
-                      Expanded(
-                        flex: 4,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              _buildDateSelector(),
-                              const SizedBox(height: 20),
-                              _buildDietPlanSection(),
-                              const SizedBox(height: 20),
-                              _buildExerciseSection(),
-                              const SizedBox(height: 20),
-                              _buildSupplementsSection(),
-                              const SizedBox(height: 20),
-                              _buildWeightTargetSection(),
-                              const SizedBox(height: 20),
-                              _buildFollowUpSection(),
-                            ],
-                          ),
+                      );
+                    } else {
+                      // Mobile: Single-column layout
+                      return SingleChildScrollView(
+                        padding: EdgeInsets.all(padding),
+                        child: Column(
+                          children: [
+                            _buildUserProfile(),
+                            const SizedBox(height: 20),
+                            _buildInfoSection(),
+                            const SizedBox(height: 20),
+                            _buildDateSelector(),
+                            const SizedBox(height: 20),
+                            _buildDietPlanSection(),
+                            const SizedBox(height: 20),
+                            _buildExerciseSection(),
+                            const SizedBox(height: 20),
+                            _buildSupplementsSection(),
+                            const SizedBox(height: 20),
+                            _buildWeightTargetSection(),
+                            const SizedBox(height: 20),
+                            _buildFollowUpSection(),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
+                      );
+                    }
+                  },
                 ),
               ),
             ],
@@ -234,52 +275,100 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 30),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0), width: 1)),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, size: 24),
-            color: const Color(0xFF2D3142),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth > 1200;
+        final isTablet = constraints.maxWidth > 768;
+        final horizontalPadding = isDesktop
+            ? 40.0
+            : isTablet
+            ? 30.0
+            : 20.0;
+        final verticalPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 24.0
+            : 20.0;
+        final titleFontSize = isDesktop
+            ? 28.0
+            : isTablet
+            ? 24.0
+            : 20.0;
+        final subtitleFontSize = isDesktop
+            ? 14.0
+            : isTablet
+            ? 13.0
+            : 12.0;
+
+        return Container(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Patient Details',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3142),
-                ),
-              ),
-              Text(
-                'Patient ID: ${widget.patientId}',
-                style: const TextStyle(fontSize: 14, color: Color(0xFF9E9E9E)),
-              ),
-            ],
-          ),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _loadAllData,
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Refresh'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B4FA3),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFF0F0F0), width: 1),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: Icon(Icons.arrow_back, size: isDesktop ? 24 : 20),
+                color: const Color(0xFF2D3142),
+              ),
+              SizedBox(width: isDesktop ? 16 : 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Patient Details',
+                      style: TextStyle(
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3142),
+                      ),
+                    ),
+                    Text(
+                      'Patient ID: ${widget.patientId}',
+                      style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        color: const Color(0xFF9E9E9E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: isDesktop ? 16 : 8),
+              if (isTablet)
+                ElevatedButton.icon(
+                  onPressed: _loadAllData,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Refresh'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF5B4FA3),
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: isDesktop ? 20 : 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  onPressed: _loadAllData,
+                  icon: const Icon(Icons.refresh),
+                  color: const Color(0xFF5B4FA3),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -454,6 +543,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
@@ -546,16 +636,421 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                   const Color(0xFFFF9800),
                 ),
               ),
-              const SizedBox(width: 12),
+            ],
+          ),
+          const SizedBox(height: 20),
+          // BMI Card
+          _buildBMICard(),
+        ],
+      ),
+    );
+  }
+
+  // Calculate BMI
+  Map<String, dynamic> _calculateBMI() {
+    if (_patientData == null ||
+        _patientData!['height'] == null ||
+        _patientData!['weight'] == null) {
+      return {
+        'bmi': 0.0,
+        'category': 'N/A',
+        'color': const Color(0xFF9E9E9E),
+        'status': 'No Data',
+        'description': 'Height and weight data not available',
+      };
+    }
+
+    final double height =
+        double.tryParse(_patientData!['height'].toString()) ?? 0;
+    final double weight =
+        double.tryParse(_patientData!['weight'].toString()) ?? 0;
+
+    if (height <= 0 || weight <= 0) {
+      return {
+        'bmi': 0.0,
+        'category': 'N/A',
+        'color': const Color(0xFF9E9E9E),
+        'status': 'Invalid Data',
+        'description': 'Invalid height or weight values',
+      };
+    }
+
+    // BMI = weight (kg) / (height (m))^2
+    final double heightInMeters = height / 100;
+    final double bmi = weight / (heightInMeters * heightInMeters);
+
+    // Determine category
+    String category;
+    Color color;
+    String status;
+    String description;
+
+    if (bmi < 18.5) {
+      category = 'Underweight';
+      color = const Color(0xFF2196F3); // Blue
+      status = 'Below Normal';
+      description = 'Consider gaining weight through healthy diet';
+    } else if (bmi >= 18.5 && bmi < 25) {
+      category = 'Normal';
+      color = const Color(0xFF4CAF50); // Green
+      status = 'Healthy';
+      description = 'Maintain your current lifestyle';
+    } else if (bmi >= 25 && bmi < 30) {
+      category = 'Overweight';
+      color = const Color(0xFFFF9800); // Orange
+      status = 'Above Normal';
+      description = 'Consider a balanced diet and exercise';
+    } else {
+      category = 'Obese';
+      color = const Color(0xFFF44336); // Red
+      status = 'High Risk';
+      description = 'Consult with healthcare professional';
+    }
+
+    return {
+      'bmi': bmi,
+      'category': category,
+      'color': color,
+      'status': status,
+      'description': description,
+    };
+  }
+
+  Widget _buildBMICard() {
+    if (_isLoadingPatient) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final bmiData = _calculateBMI();
+    final double bmi = bmiData['bmi'];
+    final String category = bmiData['category'];
+    final Color color = bmiData['color'];
+    final String status = bmiData['status'];
+    final String description = bmiData['description'];
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [color.withValues(alpha: 0.1), color.withValues(alpha: 0.05)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.2),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.monitor_heart, color: color, size: 28),
+              ),
+              const SizedBox(width: 16),
               Expanded(
-                child: _buildInfoCard(
-                  'BMI',
-                  '24.5',
-                  Icons.analytics,
-                  const Color(0xFF9C27B0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Body Mass Index (BMI)',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      bmi > 0 ? bmi.toStringAsFixed(1) : 'N/A',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Text(
+                      'BMI',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 20),
+          // BMI Category with prominent indicator
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(_getBMIIcon(category), color: color, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Status: ',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF757575),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            category,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF757575),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          // BMI Scale Indicator
+          _buildBMIScale(bmi),
+        ],
+      ),
+    );
+  }
+
+  IconData _getBMIIcon(String category) {
+    switch (category) {
+      case 'Underweight':
+        return Icons.trending_down;
+      case 'Normal':
+        return Icons.check_circle;
+      case 'Overweight':
+        return Icons.trending_up;
+      case 'Obese':
+        return Icons.warning;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  Widget _buildBMIScale(double bmi) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'BMI Scale',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF2D3142),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Scale bar with responsive indicator
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final double containerWidth = constraints.maxWidth;
+            return Container(
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFF2196F3), // Blue - Underweight
+                    Color(0xFF4CAF50), // Green - Normal
+                    Color(0xFFFF9800), // Orange - Overweight
+                    Color(0xFFF44336), // Red - Obese
+                  ],
+                  stops: [0.0, 0.3, 0.6, 1.0],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  // Indicator
+                  if (bmi > 0)
+                    Positioned(
+                      left: _getBMIPositionResponsive(bmi, containerWidth),
+                      top: -8,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2D3142),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2D3142),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        // Scale labels
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildScaleLabel('< 18.5', 'Underweight'),
+            _buildScaleLabel('18.5-24.9', 'Normal'),
+            _buildScaleLabel('25-29.9', 'Overweight'),
+            _buildScaleLabel('≥ 30', 'Obese'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  double _getBMIPositionResponsive(double bmi, double containerWidth) {
+    // Map BMI value to position on scale (0 to 100%)
+    double percentage;
+
+    if (bmi < 18.5) {
+      // Underweight range (0-30%)
+      percentage = (bmi / 18.5) * 0.3;
+    } else if (bmi < 25) {
+      // Normal range (30-60%)
+      percentage = 0.3 + ((bmi - 18.5) / (25 - 18.5)) * 0.3;
+    } else if (bmi < 30) {
+      // Overweight range (60-90%)
+      percentage = 0.6 + ((bmi - 25) / (30 - 25)) * 0.3;
+    } else {
+      // Obese range (90-100%)
+      percentage = 0.9 + ((bmi - 30) / 10) * 0.1;
+      if (percentage > 0.98) percentage = 0.98; // Cap at 98%
+    }
+
+    // Convert to pixel position based on actual container width
+    return percentage * containerWidth;
+  }
+
+  Widget _buildScaleLabel(String range, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            range,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2D3142),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFF757575),
+              fontWeight: FontWeight.w500,
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -609,11 +1104,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   Widget _buildDietPlanSection() {
-    int totalCalories = _meals.fold(
-      0,
-      (sum, meal) => sum + (meal.calories ?? 0),
-    );
-
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -673,47 +1163,14 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF4CAF50), Color(0xFF66BB6A)],
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '$totalCalories',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const Text(
-                          'kcal/day',
-                          style: TextStyle(fontSize: 9, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: () => _showAddMealDialog(),
-                    icon: const Icon(
-                      Icons.add_circle,
-                      color: Color(0xFF4CAF50),
-                      size: 32,
-                    ),
-                    tooltip: 'Add Meal',
-                  ),
-                ],
+              IconButton(
+                onPressed: () => _showAddMealDialog(),
+                icon: const Icon(
+                  Icons.add_circle,
+                  color: Color(0xFF4CAF50),
+                  size: 32,
+                ),
+                tooltip: 'Add Meal',
               ),
             ],
           ),
@@ -751,118 +1208,104 @@ class _UserDetailsPageState extends State<UserDetailsPage>
     Color color = _getMealColor(meal.mealType);
     IconData icon = _getMealIcon(meal.mealType);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [color, color.withValues(alpha: 0.7)],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: Colors.white, size: 20),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 400;
+        final iconSize = isSmall ? 36.0 : 40.0;
+        final padding = isSmall ? 10.0 : 12.0;
+        final titleFontSize = isSmall ? 12.0 : 13.0;
+        final subtitleFontSize = isSmall ? 10.0 : 11.0;
+
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  Meal.getMealTypeDisplay(meal.mealType),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
+          child: Row(
+            children: [
+              Container(
+                width: iconSize,
+                height: iconSize,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color, color.withValues(alpha: 0.7)],
                   ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  meal.mealName,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF9E9E9E),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (meal.time != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(6),
+                child: Icon(icon, color: Colors.white, size: isSmall ? 18 : 20),
               ),
-              child: Text(
-                meal.time!,
-                style: TextStyle(
-                  fontSize: 9,
-                  color: color,
-                  fontWeight: FontWeight.w600,
+              SizedBox(width: isSmall ? 10 : 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      Meal.getMealTypeDisplay(meal.mealType),
+                      style: TextStyle(
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3142),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      meal.mealName,
+                      style: TextStyle(
+                        fontSize: subtitleFontSize,
+                        color: const Color(0xFF9E9E9E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-            ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  '${meal.calories ?? 0}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+              if (meal.time != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmall ? 5 : 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    meal.time!,
+                    style: TextStyle(
+                      fontSize: isSmall ? 8 : 9,
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-                Text(
-                  'kcal',
-                  style: TextStyle(
-                    fontSize: 8,
-                    color: color.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w600,
-                  ),
+              SizedBox(width: isSmall ? 8 : 12),
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  size: isSmall ? 18 : 20,
+                  color: const Color(0xFF9E9E9E),
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
-              size: 20,
-              color: Color(0xFF9E9E9E),
-            ),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditMealDialog(meal);
-              } else if (value == 'delete') {
-                _confirmDeleteMeal(meal);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditMealDialog(meal);
+                  } else if (value == 'delete') {
+                    _confirmDeleteMeal(meal);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -901,10 +1344,6 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   Widget _buildExerciseSection() {
-    int totalCaloriesBurn = _exercises.fold(
-      0,
-      (sum, ex) => sum + (ex.caloriesBurn ?? 0),
-    );
     int totalMinutes = _exercises.fold(
       0,
       (sum, ex) => sum + (ex.durationMins ?? 0),
@@ -969,7 +1408,7 @@ class _UserDetailsPageState extends State<UserDetailsPage>
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '$totalMinutes min • $totalCaloriesBurn kcal',
+                      '$totalMinutes min',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1022,112 +1461,111 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   Widget _buildExerciseItem(Exercise exercise) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF5722).withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFFF5722).withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF5722), Color(0xFFFF7043)],
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.directions_run,
-              color: Colors.white,
-              size: 20,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 400;
+        final iconSize = isSmall ? 36.0 : 40.0;
+        final padding = isSmall ? 10.0 : 12.0;
+        final titleFontSize = isSmall ? 12.0 : 13.0;
+        final subtitleFontSize = isSmall ? 10.0 : 11.0;
+
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF5722).withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFFFF5722).withValues(alpha: 0.2),
             ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  exercise.exerciseName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
+          child: Row(
+            children: [
+              Container(
+                width: iconSize,
+                height: iconSize,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF5722), Color(0xFFFF7043)],
                   ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                if (exercise.exerciseType != null)
-                  Text(
-                    Exercise.getExerciseTypeDisplay(exercise.exerciseType!),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF9E9E9E),
+                child: Icon(
+                  Icons.directions_run,
+                  color: Colors.white,
+                  size: isSmall ? 18 : 20,
+                ),
+              ),
+              SizedBox(width: isSmall ? 10 : 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.exerciseName,
+                      style: TextStyle(
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3142),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (exercise.exerciseType != null)
+                      Text(
+                        Exercise.getExerciseTypeDisplay(exercise.exerciseType!),
+                        style: TextStyle(
+                          fontSize: subtitleFontSize,
+                          color: const Color(0xFF9E9E9E),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              if (exercise.durationMins != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmall ? 6 : 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5722).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${exercise.durationMins} min',
+                    style: TextStyle(
+                      fontSize: isSmall ? 9 : 10,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFFF5722),
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (exercise.durationMins != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5722).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${exercise.durationMins} min',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF5722),
                 ),
-              ),
-            ),
-          const SizedBox(width: 8),
-          if (exercise.caloriesBurn != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5722).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${exercise.caloriesBurn} kcal',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF5722),
+              SizedBox(width: isSmall ? 8 : 12),
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  size: isSmall ? 18 : 20,
+                  color: const Color(0xFF9E9E9E),
                 ),
-              ),
-            ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
-              size: 20,
-              color: Color(0xFF9E9E9E),
-            ),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditExerciseDialog(exercise);
-              } else if (value == 'delete') {
-                _confirmDeleteExercise(exercise);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditExerciseDialog(exercise);
+                  } else if (value == 'delete') {
+                    _confirmDeleteExercise(exercise);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -1221,75 +1659,92 @@ class _UserDetailsPageState extends State<UserDetailsPage>
   }
 
   Widget _buildSupplementItem(Supplement supplement) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF9C27B0).withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFF9C27B0).withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
-              ),
-              borderRadius: BorderRadius.circular(10),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxWidth < 400;
+        final iconSize = isSmall ? 36.0 : 40.0;
+        final padding = isSmall ? 10.0 : 12.0;
+        final titleFontSize = isSmall ? 12.0 : 13.0;
+        final subtitleFontSize = isSmall ? 10.0 : 11.0;
+
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: const Color(0xFF9C27B0).withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: const Color(0xFF9C27B0).withValues(alpha: 0.2),
             ),
-            child: const Icon(Icons.medication, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  supplement.supplementName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF2D3142),
+          child: Row(
+            children: [
+              Container(
+                width: iconSize,
+                height: iconSize,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF9C27B0), Color(0xFFBA68C8)],
                   ),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                if (supplement.dosage != null || supplement.frequency != null)
-                  Text(
-                    '${supplement.dosage ?? ''} ${supplement.frequency != null ? '• ${supplement.frequency}' : ''}',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF9E9E9E),
+                child: Icon(
+                  Icons.medication,
+                  color: Colors.white,
+                  size: isSmall ? 18 : 20,
+                ),
+              ),
+              SizedBox(width: isSmall ? 10 : 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      supplement.supplementName,
+                      style: TextStyle(
+                        fontSize: titleFontSize,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF2D3142),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (supplement.dosage != null ||
+                        supplement.frequency != null)
+                      Text(
+                        '${supplement.dosage ?? ''} ${supplement.frequency != null ? '• ${supplement.frequency}' : ''}',
+                        style: TextStyle(
+                          fontSize: subtitleFontSize,
+                          color: const Color(0xFF9E9E9E),
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                icon: Icon(
+                  Icons.more_vert,
+                  size: isSmall ? 18 : 20,
+                  color: const Color(0xFF9E9E9E),
+                ),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    _showEditSupplementDialog(supplement);
+                  } else if (value == 'delete') {
+                    _confirmDeleteSupplement(supplement);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text('Delete', style: TextStyle(color: Colors.red)),
                   ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
-              size: 20,
-              color: Color(0xFF9E9E9E),
-            ),
-            onSelected: (value) {
-              if (value == 'edit') {
-                _showEditSupplementDialog(supplement);
-              } else if (value == 'delete') {
-                _confirmDeleteSupplement(supplement);
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

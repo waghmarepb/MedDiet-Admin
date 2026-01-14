@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:meddiet/constants/app_colors.dart';
 import 'package:meddiet/services/analytics_service.dart';
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:meddiet/widgets/shimmer_widgets.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
@@ -81,7 +82,7 @@ class _ReportsPageState extends State<ReportsPage> {
             ),
             Expanded(
               child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? _buildShimmerLoading()
                   : _error != null
                   ? _buildErrorState()
                   : _buildMainContent(),
@@ -108,6 +109,36 @@ class _ReportsPageState extends State<ReportsPage> {
             onPressed: _loadData,
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: const Text('Retry', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Stats row shimmer
+          ShimmerWidgets.statsRowShimmer(),
+          const SizedBox(height: 30),
+          // Chart shimmers
+          Row(
+            children: [
+              Expanded(child: ShimmerWidgets.chartShimmer(height: 350)),
+              const SizedBox(width: 20),
+              Expanded(child: ShimmerWidgets.chartShimmer(height: 350)),
+            ],
+          ),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              Expanded(child: ShimmerWidgets.chartShimmer(height: 300)),
+              const SizedBox(width: 20),
+              Expanded(child: ShimmerWidgets.chartShimmer(height: 300)),
+            ],
           ),
         ],
       ),

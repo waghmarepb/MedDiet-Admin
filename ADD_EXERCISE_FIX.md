@@ -363,3 +363,4 @@ POST /doctor/patient/{patientId}/exercises
 
 The exercise add functionality now works exactly like meals! 🏃‍♂️🎉
 
+

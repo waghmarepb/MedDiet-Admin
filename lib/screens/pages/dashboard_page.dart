@@ -6,6 +6,7 @@ import 'package:meddiet/constants/api_endpoints.dart';
 import 'package:meddiet/constants/app_colors.dart';
 // import 'package:meddiet/screens/main_layout.dart'; // Unused after hiding notifications
 import 'package:meddiet/widgets/common_header.dart';
+import 'package:meddiet/widgets/shimmer_widgets.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -50,7 +51,9 @@ class _DashboardPageState extends State<DashboardPage>
   /// Generate the current week days for calendar display
   void _generateWeekDays() {
     final now = _selectedDate;
-    final weekday = now.weekday % 7; // Convert to Sunday = 0
+    // DateTime.weekday: Monday=1, Tuesday=2, ..., Sunday=7
+    // We want Sunday=0, Monday=1, ..., Saturday=6
+    final weekday = now.weekday == 7 ? 0 : now.weekday;
     final startOfWeek = now.subtract(Duration(days: weekday));
     _weekDays = List.generate(
       7,
@@ -199,21 +202,56 @@ class _DashboardPageState extends State<DashboardPage>
               title: '${_getGreeting()} $doctorName!',
               showAvatar: true,
             ),
-            // Main content area with 2 columns
+            // Main content area with responsive layout
             Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Center column - Transactions & Summary (75%)
-                  Expanded(flex: 7, child: _buildCenterColumn()),
-                  // Divider line
-                  Container(
-                    width: 1,
-                    color: AppColors.primary.withValues(alpha: 0.2),
-                  ),
-                  // Right column - Contacts (25%)
-                  Expanded(flex: 3, child: _buildRightSidebar()),
-                ],
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Determine if we should use mobile/tablet/desktop layout
+                  final isDesktop = constraints.maxWidth > 1200;
+                  final isTablet = constraints.maxWidth > 768 && constraints.maxWidth <= 1200;
+                  
+                  if (isDesktop) {
+                    // Desktop: 2 column layout
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Center column - Transactions & Summary
+                        Expanded(flex: 7, child: _buildCenterColumn()),
+                        // Divider line
+                        Container(
+                          width: 1,
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                        // Right column - Calendar & Appointments
+                        Expanded(flex: 3, child: _buildRightSidebar()),
+                      ],
+                    );
+                  } else if (isTablet) {
+                    // Tablet: 2 column layout with adjusted proportions
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 6, child: _buildCenterColumn()),
+                        Container(
+                          width: 1,
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                        Expanded(flex: 4, child: _buildRightSidebar()),
+                      ],
+                    );
+                  } else {
+                    // Mobile: Single column layout
+                    return SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          _buildCenterColumn(),
+                          const Divider(height: 1),
+                          _buildRightSidebar(),
+                        ],
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ],
@@ -230,10 +268,22 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildCenterColumn() {
-    return Builder(
-      builder: (context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Responsive padding based on screen width
+        final horizontalPadding = constraints.maxWidth > 1200 
+            ? 30.0 
+            : constraints.maxWidth > 768 
+                ? 20.0 
+                : 16.0;
+        
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(30, 24, 30, 30),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding, 
+            24, 
+            horizontalPadding, 
+            30,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -248,20 +298,26 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildQuickSummary() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleFontSize = constraints.maxWidth > 768 ? 22.0 : 18.0;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'MedDiet Insights & Summary',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3142),
-              ),
-            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    'MedDiet Insights & Summary',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
             TextButton.icon(
               onPressed: () async {
                 final url = Uri.parse('http://localhost:3000/api-docs');
@@ -282,83 +338,234 @@ class _DashboardPageState extends State<DashboardPage>
           ],
         ),
         const SizedBox(height: 20),
-        SizedBox(
-          height: 220,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildImageCard(
-                'Healthy Salads',
-                'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop',
-                'Recommended for Heart Health',
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Adjust card size based on available width
+            final cardWidth = constraints.maxWidth > 1200 
+                ? 280.0 
+                : constraints.maxWidth > 768 
+                    ? 240.0 
+                    : 200.0;
+            
+            return SizedBox(
+              height: 220,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildImageCard(
+                    'Healthy Salads',
+                    'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop',
+                    'Recommended for Heart Health',
+                    cardWidth,
+                  ),
+                  const SizedBox(width: 20),
+                  _buildImageCard(
+                    'Olive Oil Benefits',
+                    'https://images.unsplash.com/photo-1473093226795-af9932fe5856?q=80&w=2012&auto=format&fit=crop',
+                    'Key Ingredient in MedDiet',
+                    cardWidth,
+                  ),
+                  const SizedBox(width: 20),
+                  _buildImageCard(
+                    'Fresh Seafood',
+                    'https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1974&auto=format&fit=crop',
+                    'Weekly Protein Source',
+                    cardWidth,
+                  ),
+                  const SizedBox(width: 20),
+                  _buildImageCard(
+                    'Nuts & Grains',
+                    'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?q=80&w=2064&auto=format&fit=crop',
+                    'Essential Healthy Fats',
+                    cardWidth,
+                  ),
+                ],
               ),
-              const SizedBox(width: 20),
-              _buildImageCard(
-                'Olive Oil Benefits',
-                'https://images.unsplash.com/photo-1473093226795-af9932fe5856?q=80&w=2012&auto=format&fit=crop',
-                'Key Ingredient in MedDiet',
-              ),
-              const SizedBox(width: 20),
-              _buildImageCard(
-                'Fresh Seafood',
-                'https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1974&auto=format&fit=crop',
-                'Weekly Protein Source',
-              ),
-              const SizedBox(width: 20),
-              _buildImageCard(
-                'Nuts & Grains',
-                'https://images.unsplash.com/photo-1511690656952-34342bb7c2f2?q=80&w=2064&auto=format&fit=crop',
-                'Essential Healthy Fats',
-              ),
-            ],
-          ),
+            );
+          },
         ),
         const SizedBox(height: 30),
-        Row(
-          children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'Total Patients',
-                _isLoading ? '...' : '$_totalPatients',
-                'Registered',
-                const Color(0xFF5B4FA3),
-                true,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildSummaryCard(
-                'Active Plans',
-                _isLoading ? '...' : '$_totalPatients',
-                'Active',
-                const Color(0xFF00BCD4),
-                false,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: _buildSummaryCard(
-                'This Week',
-                _isLoading
-                    ? '...'
-                    : '${_patients.where((p) => _isRecentPatient(p)).length}',
-                'New Patients',
-                const Color(0xFF5B4FA3),
-                false,
-                showBars: true,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(child: _buildPieChartCard()),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            // Responsive grid for summary cards
+            final isWideScreen = constraints.maxWidth > 900;
+            final isMediumScreen = constraints.maxWidth > 600;
+            
+            if (isWideScreen) {
+              // Desktop: 4 cards in a row
+              if (_isLoading) {
+                return Row(
+                  children: [
+                    Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                    const SizedBox(width: 16),
+                    Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                    const SizedBox(width: 16),
+                    Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                    const SizedBox(width: 16),
+                    Expanded(child: ShimmerWidgets.chartShimmer(height: 200)),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Total Patients',
+                      '$_totalPatients',
+                      'Registered',
+                      const Color(0xFF5B4FA3),
+                      true,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'Active Plans',
+                      '$_totalPatients',
+                      'Active',
+                      const Color(0xFF00BCD4),
+                      false,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildSummaryCard(
+                      'This Week',
+                      '${_patients.where((p) => _isRecentPatient(p)).length}',
+                      'New Patients',
+                      const Color(0xFF5B4FA3),
+                      false,
+                      showBars: true,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildPieChartCard()),
+                ],
+              );
+            } else if (isMediumScreen) {
+              // Tablet: 2 cards per row
+              if (_isLoading) {
+                return Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                        const SizedBox(width: 16),
+                        Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: ShimmerWidgets.summaryCardShimmer()),
+                        const SizedBox(width: 16),
+                        Expanded(child: ShimmerWidgets.chartShimmer(height: 200)),
+                      ],
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Total Patients',
+                          '$_totalPatients',
+                          'Registered',
+                          const Color(0xFF5B4FA3),
+                          true,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'Active Plans',
+                          '$_totalPatients',
+                          'Active',
+                          const Color(0xFF00BCD4),
+                          false,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryCard(
+                          'This Week',
+                          '${_patients.where((p) => _isRecentPatient(p)).length}',
+                          'New Patients',
+                          const Color(0xFF5B4FA3),
+                          false,
+                          showBars: true,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildPieChartCard()),
+                    ],
+                  ),
+                ],
+              );
+            } else {
+              // Mobile: 1 card per row
+              if (_isLoading) {
+                return Column(
+                  children: [
+                    ShimmerWidgets.summaryCardShimmer(),
+                    const SizedBox(height: 16),
+                    ShimmerWidgets.summaryCardShimmer(),
+                    const SizedBox(height: 16),
+                    ShimmerWidgets.summaryCardShimmer(),
+                    const SizedBox(height: 16),
+                    ShimmerWidgets.chartShimmer(height: 200),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  _buildSummaryCard(
+                    'Total Patients',
+                    '$_totalPatients',
+                    'Registered',
+                    const Color(0xFF5B4FA3),
+                    true,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSummaryCard(
+                    'Active Plans',
+                    '$_totalPatients',
+                    'Active',
+                    const Color(0xFF00BCD4),
+                    false,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSummaryCard(
+                    'This Week',
+                    '${_patients.where((p) => _isRecentPatient(p)).length}',
+                    'New Patients',
+                    const Color(0xFF5B4FA3),
+                    false,
+                    showBars: true,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPieChartCard(),
+                ],
+              );
+            }
+          },
         ),
-      ],
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildImageCard(String title, String imageUrl, String subtitle) {
+  Widget _buildImageCard(String title, String imageUrl, String subtitle, double width) {
     return Container(
-      width: 280,
+      width: width,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
@@ -437,20 +644,26 @@ class _DashboardPageState extends State<DashboardPage>
       const Color(0xFFEC4899),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final titleFontSize = constraints.maxWidth > 768 ? 22.0 : 18.0;
+        
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Recent Patients (${_recentPatients.length})',
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3142),
-              ),
-            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    'Recent Patients (${_recentPatients.length})',
+                    style: TextStyle(
+                      fontSize: titleFontSize,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
             IconButton(
               onPressed: _fetchDashboardData,
               icon: Icon(
@@ -528,7 +741,9 @@ class _DashboardPageState extends State<DashboardPage>
                   }).toList(),
                 ),
         ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -539,18 +754,25 @@ class _DashboardPageState extends State<DashboardPage>
     String timeAgo,
     Color iconColor,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 500;
+        final avatarSize = isSmallScreen ? 44.0 : 54.0;
+        final nameFontSize = isSmallScreen ? 14.0 : 15.0;
+        final emailFontSize = isSmallScreen ? 11.0 : 12.0;
+        
+        return Container(
+          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: avatarSize,
+                height: avatarSize,
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [iconColor.withValues(alpha: 0.8), iconColor],
@@ -567,64 +789,67 @@ class _DashboardPageState extends State<DashboardPage>
             child: Center(
               child: Text(
                 _getInitials(name),
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: isSmallScreen ? 16 : 18,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isSmallScreen ? 10 : 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: TextStyle(
+                    fontSize: nameFontSize,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF2D3142),
+                    color: const Color(0xFF2D3142),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF9E9E9E),
+                  style: TextStyle(
+                    fontSize: emailFontSize,
+                    color: const Color(0xFF9E9E9E),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Registered $timeAgo',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFFBDBDBD),
+                  style: TextStyle(
+                    fontSize: isSmallScreen ? 10 : 11,
+                    color: const Color(0xFFBDBDBD),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 14),
+          SizedBox(width: isSmallScreen ? 8 : 14),
           Container(
-            width: 36,
-            height: 36,
+            width: isSmallScreen ? 32 : 36,
+            height: isSmallScreen ? 32 : 36,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.arrow_forward,
               color: Colors.white,
-              size: 18,
+              size: isSmallScreen ? 16 : 18,
             ),
           ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -636,42 +861,63 @@ class _DashboardPageState extends State<DashboardPage>
     bool showAreaChart, {
     bool showBars = false,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallCard = constraints.maxWidth < 200;
+        final titleFontSize = isSmallCard ? 11.0 : 13.0;
+        final amountFontSize = isSmallCard ? 20.0 : 26.0;
+        final currencyFontSize = isSmallCard ? 10.0 : 11.0;
+        final padding = isSmallCard ? 16.0 : 20.0;
+        
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: titleFontSize, 
+                        color: const Color(0xFF9E9E9E),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Icon(
+                    Icons.trending_up, 
+                    color: Colors.green, 
+                    size: isSmallCard ? 12 : 14,
+                  ),
+                ],
               ),
-              const Icon(Icons.trending_up, color: Colors.green, size: 14),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            amount,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2D3142),
-            ),
-          ),
-          Text(
-            currency,
-            style: const TextStyle(fontSize: 11, color: Color(0xFFBDBDBD)),
-          ),
+              const SizedBox(height: 12),
+              Text(
+                amount,
+                style: TextStyle(
+                  fontSize: amountFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF2D3142),
+                ),
+              ),
+              Text(
+                currency,
+                style: TextStyle(
+                  fontSize: currencyFontSize, 
+                  color: const Color(0xFFBDBDBD),
+                ),
+              ),
           const SizedBox(height: 20),
           SizedBox(
-            height: 70,
+            height: isSmallCard ? 50 : 70,
             child: _isLoading || _analyticsData == null
                 ? const Center(
                     child: SizedBox(
@@ -684,8 +930,10 @@ class _DashboardPageState extends State<DashboardPage>
                 ? _buildMiniBarChart(color)
                 : _buildMiniLineChart(color, showAreaChart),
           ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -743,37 +991,51 @@ class _DashboardPageState extends State<DashboardPage>
   }
 
   Widget _buildPieChartCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Plans',
-                style: TextStyle(fontSize: 13, color: Color(0xFF9E9E9E)),
-              ),
-              const Icon(Icons.trending_up, color: Colors.green, size: 14),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallCard = constraints.maxWidth < 200;
+        final chartSize = isSmallCard ? 80.0 : 100.0;
+        final padding = isSmallCard ? 16.0 : 20.0;
+        final titleFontSize = isSmallCard ? 11.0 : 13.0;
+        
+        return Container(
+          padding: EdgeInsets.all(padding),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
           ),
-          const SizedBox(height: 20),
-          Center(
-            child: SizedBox(
-              width: 100,
-              height: 100,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Plans',
+                    style: TextStyle(
+                      fontSize: titleFontSize, 
+                      color: const Color(0xFF9E9E9E),
+                    ),
+                  ),
+                  Icon(
+                    Icons.trending_up, 
+                    color: Colors.green, 
+                    size: isSmallCard ? 12 : 14,
+                  ),
+                ],
+              ),
+              SizedBox(height: isSmallCard ? 16 : 20),
+              Center(
+                child: SizedBox(
+                  width: chartSize,
+                  height: chartSize,
               child: _isLoading || _analyticsData == null
                   ? const CircularProgressIndicator()
                   : PieChart(
                       PieChartData(
                         sectionsSpace: 0,
-                        centerSpaceRadius: 30,
+                        centerSpaceRadius: isSmallCard ? 25 : 30,
                         sections: _analyticsData!.planBreakdown
                             .asMap()
                             .entries
@@ -788,7 +1050,7 @@ class _DashboardPageState extends State<DashboardPage>
                                 color: colors[entry.key % colors.length],
                                 value: entry.value.value,
                                 title: '',
-                                radius: 10,
+                                radius: isSmallCard ? 8 : 10,
                               );
                             })
                             .toList(),
@@ -796,35 +1058,49 @@ class _DashboardPageState extends State<DashboardPage>
                     ),
             ),
           ),
-          const SizedBox(height: 12),
-          const Center(
+          SizedBox(height: isSmallCard ? 8 : 12),
+          Center(
             child: Text(
               'User\nDistribution',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11,
-                color: Color(0xFF9E9E9E),
+                fontSize: isSmallCard ? 10 : 11,
+                color: const Color(0xFF9E9E9E),
                 height: 1.3,
               ),
             ),
           ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildRightSidebar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
-          topRight: Radius.circular(30),
-          bottomRight: Radius.circular(30),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(10, 24, 24, 30),
-        child: Container(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Determine if sidebar is in mobile view (full width)
+        final isMobileView = constraints.maxWidth > 600;
+        
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: isMobileView 
+                ? const BorderRadius.only(
+                    topRight: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
+                  )
+                : BorderRadius.zero,
+          ),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              isMobileView ? 10 : 16, 
+              24, 
+              isMobileView ? 24 : 16, 
+              30,
+            ),
+            child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFFF8F9FC),
             borderRadius: BorderRadius.circular(12),
@@ -838,9 +1114,9 @@ class _DashboardPageState extends State<DashboardPage>
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.only(
-              left: 24,
-              right: 24,
+            padding: EdgeInsets.only(
+              left: isMobileView ? 24 : 16,
+              right: isMobileView ? 24 : 16,
               bottom: 24,
               top: 0,
             ),
@@ -849,9 +1125,9 @@ class _DashboardPageState extends State<DashboardPage>
               children: [
                 // Calendar Header
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isMobileView ? 18 : 12,
+                    vertical: isMobileView ? 14 : 10,
                   ),
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -859,7 +1135,7 @@ class _DashboardPageState extends State<DashboardPage>
                       end: Alignment.bottomRight,
                       colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
                     ),
-                    borderRadius: const BorderRadius.only(
+                    borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(12),
                       topRight: Radius.circular(12),
                       bottomLeft: Radius.circular(10),
@@ -869,21 +1145,24 @@ class _DashboardPageState extends State<DashboardPage>
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'MY CALENDAR',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
+                      Flexible(
+                        child: Text(
+                          'MY CALENDAR',
+                          style: TextStyle(
+                            fontSize: isMobileView ? 11 : 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: isMobileView ? 1.5 : 1.0,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       InkWell(
                         onTap: () => _selectDate(context),
                         borderRadius: BorderRadius.circular(8),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobileView ? 10 : 8,
                             vertical: 5,
                           ),
                           decoration: BoxDecoration(
@@ -895,17 +1174,17 @@ class _DashboardPageState extends State<DashboardPage>
                             children: [
                               Text(
                                 _getMonthYear(_currentMonth),
-                                style: const TextStyle(
-                                  fontSize: 12,
+                                style: TextStyle(
+                                  fontSize: isMobileView ? 12 : 11,
                                   color: Colors.white,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(
+                              SizedBox(width: isMobileView ? 4 : 3),
+                              Icon(
                                 Icons.calendar_today,
                                 color: Colors.white,
-                                size: 14,
+                                size: isMobileView ? 14 : 12,
                               ),
                             ],
                           ),
@@ -916,46 +1195,63 @@ class _DashboardPageState extends State<DashboardPage>
                 ),
                 const SizedBox(height: 24),
                 // Week Days Row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildWeekDay('Sun'),
-                      _buildWeekDay('Mon'),
-                      _buildWeekDay('Tue'),
-                      _buildWeekDay('Wed'),
-                      _buildWeekDay('Thu'),
-                      _buildWeekDay('Fri'),
-                      _buildWeekDay('Sat'),
-                    ],
-                  ),
+                Row(
+                  children: [
+                    _buildWeekDay('Sun'),
+                    _buildWeekDay('Mon'),
+                    _buildWeekDay('Tue'),
+                    _buildWeekDay('Wed'),
+                    _buildWeekDay('Thu'),
+                    _buildWeekDay('Fri'),
+                    _buildWeekDay('Sat'),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 // Calendar Days Row
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: _weekDays.map((date) {
-                      final isSelected =
-                          date.day == _selectedDate.day &&
-                          date.month == _selectedDate.month &&
-                          date.year == _selectedDate.year;
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedDate = date;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(10),
-                        child: _buildCalendarDay(
-                          date.day.toString(),
-                          isSelected,
+                Row(
+                  children: _weekDays.map((date) {
+                    final isSelected =
+                        date.day == _selectedDate.day &&
+                        date.month == _selectedDate.month &&
+                        date.year == _selectedDate.year;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedDate = date;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: isSelected
+                                  ? const LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                                    )
+                                  : null,
+                              color: isSelected ? null : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                date.day.toString(),
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected ? Colors.white : const Color(0xFF374151),
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      );
-                    }).toList(),
-                  ),
+                      ),
+                    );
+                  }).toList(),
                 ),
                 const SizedBox(height: 32),
                 // Date Header
@@ -985,7 +1281,13 @@ class _DashboardPageState extends State<DashboardPage>
                 // Appointments List
                 Expanded(
                   child: _isLoadingAppointments
-                      ? const Center(child: CircularProgressIndicator())
+                      ? ListView(
+                          children: [
+                            ShimmerWidgets.listItemShimmer(),
+                            ShimmerWidgets.listItemShimmer(),
+                            ShimmerWidgets.listItemShimmer(),
+                          ],
+                        )
                       : Builder(
                           builder: (context) {
                             final filteredAppointments = _appointments.where((
@@ -1079,19 +1381,22 @@ class _DashboardPageState extends State<DashboardPage>
           ),
         ),
       ),
+        );
+      },
     );
   }
 
   Widget _buildWeekDay(String day) {
-    return SizedBox(
-      width: 30,
-      child: Text(
-        day,
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w500,
-          color: Colors.grey[500],
+    return Expanded(
+      child: Center(
+        child: Text(
+          day,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey[500],
+          ),
         ),
       ),
     );
@@ -1136,34 +1441,6 @@ class _DashboardPageState extends State<DashboardPage>
     return '${months[date.month - 1]}, $day';
   }
 
-  Widget _buildCalendarDay(String day, bool isSelected) {
-    return Container(
-      width: 30,
-      height: 40,
-      decoration: BoxDecoration(
-        gradient: isSelected
-            ? const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
-              )
-            : null,
-        color: isSelected ? null : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Text(
-          day,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF374151),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildAppointmentItem(
     String time,
     String patientName,
@@ -1180,29 +1457,36 @@ class _DashboardPageState extends State<DashboardPage>
         ? Colors.red
         : const Color(0xFFF59E0B);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmallScreen = constraints.maxWidth < 300;
+        final avatarSize = isSmallScreen ? 36.0 : 44.0;
+        final nameFontSize = isSmallScreen ? 12.0 : 14.0;
+        final reasonFontSize = isSmallScreen ? 10.0 : 11.0;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(isSmallScreen ? 8 : 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: avatarSize,
+                      height: avatarSize,
                   decoration: BoxDecoration(
                     color: const Color(0xFF6366F1).withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
@@ -1213,33 +1497,39 @@ class _DashboardPageState extends State<DashboardPage>
                         ? CachedNetworkImage(
                             imageUrl: profileImage,
                             fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => const Icon(
+                            errorWidget: (context, url, error) => Icon(
                               Icons.person,
-                              color: Color(0xFF6366F1),
+                              color: const Color(0xFF6366F1),
+                              size: isSmallScreen ? 18 : 24,
                             ),
                           )
-                        : const Icon(Icons.person, color: Color(0xFF6366F1)),
+                        : Icon(
+                            Icons.person, 
+                            color: const Color(0xFF6366F1),
+                            size: isSmallScreen ? 18 : 24,
+                          ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: isSmallScreen ? 8 : 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         patientName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF1F2937),
-                          fontSize: 14,
+                          color: const Color(0xFF1F2937),
+                          fontSize: nameFontSize,
                         ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 2),
                       Text(
                         reason,
                         style: TextStyle(
                           color: Colors.grey[600],
-                          fontSize: 11,
+                          fontSize: reasonFontSize,
                           fontWeight: FontWeight.w400,
                         ),
                         maxLines: 1,
@@ -1249,8 +1539,8 @@ class _DashboardPageState extends State<DashboardPage>
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isSmallScreen ? 6 : 8,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
@@ -1261,30 +1551,33 @@ class _DashboardPageState extends State<DashboardPage>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 5,
-                        height: 5,
+                        width: isSmallScreen ? 4 : 5,
+                        height: isSmallScreen ? 4 : 5,
                         decoration: BoxDecoration(
                           color: badgeColor,
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      SizedBox(width: isSmallScreen ? 4 : 6),
                       Text(
                         status.toUpperCase(),
                         style: TextStyle(
                           color: badgeColor,
-                          fontSize: 9,
+                          fontSize: isSmallScreen ? 8 : 9,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ],
+                ),
+              ),
+              Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSmallScreen ? 8 : 12, 
+                  vertical: 8,
+                ),
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: const BorderRadius.only(
@@ -1298,18 +1591,18 @@ class _DashboardPageState extends State<DashboardPage>
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.access_time_rounded,
-                      size: 14,
-                      color: Color(0xFF6366F1),
+                      size: isSmallScreen ? 12 : 14,
+                      color: const Color(0xFF6366F1),
                     ),
-                    const SizedBox(width: 6),
+                    SizedBox(width: isSmallScreen ? 4 : 6),
                     Text(
                       time,
-                      style: const TextStyle(
-                        color: Color(0xFF6366F1),
+                      style: TextStyle(
+                        color: const Color(0xFF6366F1),
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: isSmallScreen ? 11 : 12,
                       ),
                     ),
                   ],
@@ -1318,15 +1611,15 @@ class _DashboardPageState extends State<DashboardPage>
                   children: [
                     Icon(
                       Icons.medical_services_outlined,
-                      size: 12,
+                      size: isSmallScreen ? 10 : 12,
                       color: Colors.grey[400],
                     ),
-                    const SizedBox(width: 4),
-                    const Text(
+                    SizedBox(width: isSmallScreen ? 3 : 4),
+                    Text(
                       'Dr. You',
                       style: TextStyle(
-                        color: Color(0xFF6B7280),
-                        fontSize: 11,
+                        color: const Color(0xFF6B7280),
+                        fontSize: isSmallScreen ? 10 : 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1335,8 +1628,10 @@ class _DashboardPageState extends State<DashboardPage>
               ],
             ),
           ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

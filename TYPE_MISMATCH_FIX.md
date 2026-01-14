@@ -203,3 +203,4 @@ if (json['patient_id'] is! String && json['patient_id'] is! int) {
 3. Monitor debug logs for any remaining type issues
 4. Consider standardizing API response types on the backend
 
+
